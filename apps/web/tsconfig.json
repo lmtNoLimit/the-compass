@@ -15,7 +15,9 @@
     "rootDirs": [".", "./.react-router/types"],
     "baseUrl": ".",
     "paths": {
-      "~/*": ["./app/*"]
+      "~/*": ["./app/*"],
+      "@persona-compass/shared": ["../../packages/shared/src/index.ts"],
+      "@persona-compass/shared/*": ["../../packages/shared/src/*"]
     },
     "esModuleInterop": true,
     "verbatimModuleSyntax": true,

@@ -1,0 +1,9 @@
+node_modules
+build
+dist
+public
+.cache
+.env
+*.config.js
+*.config.ts
+coverage
