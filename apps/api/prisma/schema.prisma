@@ -1,0 +1,32 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  USER
+}
+
+// User model matching Clerk authentication and architecture requirements
+model User {
+  id           String   @id @default(uuid())
+  clerkId      String   @unique @map("clerk_id")
+  email        String   @unique
+  name         String
+  organization String?
+  role         Role     @default(USER)
+  createdAt    DateTime @default(now()) @map("created_at")
+  lastLoginAt  DateTime? @map("last_login_at")
+
+  @@map("users")
+  @@index([clerkId], name: "idx_users_clerk_id")
+  @@index([email], name: "idx_users_email")
+}
