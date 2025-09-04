@@ -1,6 +1,14 @@
 .DS_Store
-/node_modules/
+node_modules/
 
 # React Router
 /.react-router/
+
+# TypeScript build artifacts
+*.d.ts
+*.d.ts.map
+packages/shared/**/*.js
+
+# Keep TypeScript declaration files in @types
+!packages/shared/src/types/**/*.d.ts
 /build/
