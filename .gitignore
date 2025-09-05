@@ -8,6 +8,9 @@ node_modules/
 /apps/web/.react-router/
 /apps/web/build/
 
+# Vercel
+.vercel/
+
 # TypeScript build artifacts
 *.d.ts
 *.d.ts.map
