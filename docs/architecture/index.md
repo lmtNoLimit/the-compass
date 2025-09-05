@@ -66,7 +66,7 @@
     - [Authentication and Authorization](./backend-architecture.md#authentication-and-authorization)
       - [Auth Flow](./backend-architecture.md#auth-flow)
       - [Middleware/Guards](./backend-architecture.md#middlewareguards)
-  - [Unified Project Structure](./unified-project-structure.md)
+  - [Source Tree](./source-tree.md)
   - [Development Workflow](./development-workflow.md)
     - [Local Development Setup](./development-workflow.md#local-development-setup)
       - [Prerequisites](./development-workflow.md#prerequisites)

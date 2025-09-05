@@ -43,8 +43,7 @@ persona-compass/
 │   │   ├── front-end-spec.md    # Frontend specifications
 │   │   ├── source-tree.md       # This file
 │   │   ├── tech-stack.md        # Technology stack details
-│   │   ├── testing-strategy.md  # Testing approach
-│   │   └── unified-project-structure.md # Legacy structure doc
+│   │   └── testing-strategy.md  # Testing approach and patterns
 │   ├── prd/                     # Product requirements
 │   │   └── epic-*.md            # Epic documents
 │   ├── qa/                      # QA results and gates
