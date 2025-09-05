@@ -3,14 +3,24 @@ import {
   isRouteErrorResponse,
   Links,
   Meta,
+  NavLink,
   Outlet,
   Scripts,
   ScrollRestoration,
+  useNavigation,
 } from 'react-router';
 import type { Route } from './+types/root';
-import { ClerkProvider, SignedIn, SignedOut, UserButton, SignInButton } from '@clerk/react-router';
+import { ClerkProvider, SignedIn, SignedOut, UserButton, SignInButton, useAuth } from '@clerk/react-router';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useState } from 'react';
+import { 
+  DashboardIcon, 
+  FileTextIcon, 
+  CheckCircledIcon, 
+  ClockIcon, 
+  GearIcon,
+  HamburgerMenuIcon 
+} from '@radix-ui/react-icons';
 
 import stylesheet from './app.css?url';
 
@@ -50,6 +60,8 @@ export function Layout({ children }: { children: React.ReactNode }) {
   );
 }
 
+import { AppShell } from '~/components/layouts/AppShell';
+
 export default function App({ loaderData }: Route.ComponentProps) {
   const [queryClient] = useState(
     () =>
@@ -66,45 +78,7 @@ export default function App({ loaderData }: Route.ComponentProps) {
   return (
     <ClerkProvider loaderData={loaderData}>
       <QueryClientProvider client={queryClient}>
-        <header className="flex items-center justify-between py-4 px-6 bg-white shadow-sm">
-          <div className="flex items-center">
-            <h1 className="text-xl font-bold text-gray-900">The Compass</h1>
-          </div>
-          <nav className="flex items-center space-x-4">
-            <SignedOut>
-              <SignInButton mode="modal">
-                <button className="px-4 py-2 text-sm font-medium text-gray-700 hover:text-gray-900">
-                  Sign In
-                </button>
-              </SignInButton>
-            </SignedOut>
-            <SignedIn>
-              <a
-                href="/briefs"
-                className="px-4 py-2 text-sm font-medium text-gray-700 hover:text-gray-900"
-              >
-                Briefs
-              </a>
-              <a
-                href="/validations"
-                className="px-4 py-2 text-sm font-medium text-gray-700 hover:text-gray-900"
-              >
-                Validations
-              </a>
-              <UserButton
-                afterSignOutUrl="/"
-                appearance={{
-                  elements: {
-                    avatarBox: 'w-8 h-8',
-                  },
-                }}
-              />
-            </SignedIn>
-          </nav>
-        </header>
-        <main>
-          <Outlet />
-        </main>
+        <AppShell />
       </QueryClientProvider>
     </ClerkProvider>
   );
