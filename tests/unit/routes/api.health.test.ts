@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { loader } from '~/routes/api.health';
+import type { LoaderFunctionArgs } from 'react-router';
 
 // Mock the Prisma import
 vi.mock('~/lib/prisma.server', () => ({
@@ -17,7 +18,7 @@ describe('Health Check Endpoint', () => {
 
   it('returns 200 status with healthy response when database is not configured', async () => {
     const request = new Request('http://localhost/api/health');
-    const response = await loader({ request, params: {}, context: {} } as any);
+    const response = await loader({ request, params: {}, context: {} } as LoaderFunctionArgs);
     const data = await response.json();
 
     expect(response.status).toBe(200);
@@ -31,7 +32,7 @@ describe('Health Check Endpoint', () => {
 
   it('returns correct system information', async () => {
     const request = new Request('http://localhost/api/health');
-    const response = await loader({ request, params: {}, context: {} } as any);
+    const response = await loader({ request, params: {}, context: {} } as LoaderFunctionArgs);
     const data = await response.json();
 
     expect(data.system).toHaveProperty('nodeVersion');
@@ -51,7 +52,7 @@ describe('Health Check Endpoint', () => {
     vi.mocked(prisma.$queryRaw).mockResolvedValueOnce([{ '?column?': 1 }]);
 
     const request = new Request('http://localhost/api/health');
-    const response = await loader({ request, params: {}, context: {} } as any);
+    const response = await loader({ request, params: {}, context: {} } as LoaderFunctionArgs);
     const data = await response.json();
 
     expect(response.status).toBe(200);
@@ -69,7 +70,7 @@ describe('Health Check Endpoint', () => {
     vi.mocked(prisma.$queryRaw).mockRejectedValueOnce(new Error('Connection refused'));
 
     const request = new Request('http://localhost/api/health');
-    const response = await loader({ request, params: {}, context: {} } as any);
+    const response = await loader({ request, params: {}, context: {} } as LoaderFunctionArgs);
     const data = await response.json();
 
     expect(response.status).toBe(503);
@@ -80,7 +81,7 @@ describe('Health Check Endpoint', () => {
 
   it('includes correct cache control headers', async () => {
     const request = new Request('http://localhost/api/health');
-    const response = await loader({ request, params: {}, context: {} } as any);
+    const response = await loader({ request, params: {}, context: {} } as LoaderFunctionArgs);
 
     expect(response.headers.get('Cache-Control')).toBe('no-cache, no-store, must-revalidate');
     expect(response.headers.get('Content-Type')).toBe('application/json');
@@ -88,7 +89,7 @@ describe('Health Check Endpoint', () => {
 
   it('response structure matches expected schema', async () => {
     const request = new Request('http://localhost/api/health');
-    const response = await loader({ request, params: {}, context: {} } as any);
+    const response = await loader({ request, params: {}, context: {} } as LoaderFunctionArgs);
     const data = await response.json();
 
     // Verify structure

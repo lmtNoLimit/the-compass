@@ -5,12 +5,9 @@ interface RequestOptions extends RequestInit {
 }
 
 class ApiService {
-  private async request<T>(
-    endpoint: string,
-    options: RequestOptions = {}
-  ): Promise<T> {
+  private async request<T>(endpoint: string, options: RequestOptions = {}): Promise<T> {
     const { token, ...fetchOptions } = options;
-    
+
     const config: RequestInit = {
       ...fetchOptions,
       headers: {
@@ -33,7 +30,7 @@ class ApiService {
     return this.request<T>(endpoint, { ...options, method: 'GET' });
   }
 
-  post<T>(endpoint: string, body: any, options?: RequestOptions) {
+  post<T>(endpoint: string, body: unknown, options?: RequestOptions) {
     return this.request<T>(endpoint, {
       ...options,
       method: 'POST',
@@ -41,7 +38,7 @@ class ApiService {
     });
   }
 
-  put<T>(endpoint: string, body: any, options?: RequestOptions) {
+  put<T>(endpoint: string, body: unknown, options?: RequestOptions) {
     return this.request<T>(endpoint, {
       ...options,
       method: 'PUT',

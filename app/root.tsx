@@ -51,25 +51,56 @@ export function Layout({ children }: { children: React.ReactNode }) {
 }
 
 export default function App({ loaderData }: Route.ComponentProps) {
-  const [queryClient] = useState(() => new QueryClient({
-    defaultOptions: {
-      queries: {
-        staleTime: 1000 * 60 * 5,
-        gcTime: 1000 * 60 * 10,
-      },
-    },
-  }));
+  const [queryClient] = useState(
+    () =>
+      new QueryClient({
+        defaultOptions: {
+          queries: {
+            staleTime: 1000 * 60 * 5,
+            gcTime: 1000 * 60 * 10,
+          },
+        },
+      })
+  );
 
   return (
     <ClerkProvider loaderData={loaderData}>
       <QueryClientProvider client={queryClient}>
-        <header className="flex items-center justify-center py-8 px-4">
-          <SignedOut>
-            <SignInButton />
-          </SignedOut>
-          <SignedIn>
-            <UserButton />
-          </SignedIn>
+        <header className="flex items-center justify-between py-4 px-6 bg-white shadow-sm">
+          <div className="flex items-center">
+            <h1 className="text-xl font-bold text-gray-900">The Compass</h1>
+          </div>
+          <nav className="flex items-center space-x-4">
+            <SignedOut>
+              <SignInButton mode="modal">
+                <button className="px-4 py-2 text-sm font-medium text-gray-700 hover:text-gray-900">
+                  Sign In
+                </button>
+              </SignInButton>
+            </SignedOut>
+            <SignedIn>
+              <a
+                href="/briefs"
+                className="px-4 py-2 text-sm font-medium text-gray-700 hover:text-gray-900"
+              >
+                Briefs
+              </a>
+              <a
+                href="/validations"
+                className="px-4 py-2 text-sm font-medium text-gray-700 hover:text-gray-900"
+              >
+                Validations
+              </a>
+              <UserButton
+                afterSignOutUrl="/"
+                appearance={{
+                  elements: {
+                    avatarBox: 'w-8 h-8',
+                  },
+                }}
+              />
+            </SignedIn>
+          </nav>
         </header>
         <main>
           <Outlet />
