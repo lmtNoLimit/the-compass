@@ -28,7 +28,7 @@
       - [Acceptance Criteria](./epic-1-foundation-authentication-infrastructure.md#acceptance-criteria)
     - [Story 1.2: Set Up MongoDB Connection and Base Models](./epic-1-foundation-authentication-infrastructure.md#story-12-set-up-mongodb-connection-and-base-models)
       - [Acceptance Criteria](./epic-1-foundation-authentication-infrastructure.md#acceptance-criteria)
-    - [Story 1.3: Configure Render Deployment Pipeline](./epic-1-foundation-authentication-infrastructure.md#story-13-configure-render-deployment-pipeline)
+    - [Story 1.3: Configure Vercel Deployment Pipeline](./epic-1-foundation-authentication-infrastructure.md#story-13-configure-vercel-deployment-pipeline)
       - [Acceptance Criteria](./epic-1-foundation-authentication-infrastructure.md#acceptance-criteria)
     - [Story 1.4: Implement User Authentication System](./epic-1-foundation-authentication-infrastructure.md#story-14-implement-user-authentication-system)
       - [Acceptance Criteria](./epic-1-foundation-authentication-infrastructure.md#acceptance-criteria)

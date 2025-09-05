@@ -1,6 +1,6 @@
 # Epic 1: Foundation & Authentication Infrastructure
 
-Establish the core technical foundation including Remix setup, PostgreSQL (Neon) database connection, Render deployment pipeline, and Clerk authentication integration. This epic delivers a working application shell with user login capabilities, providing the infrastructure all future features will build upon.
+Establish the core technical foundation including React Router setup, PostgreSQL (Neon) database connection, Vercel deployment pipeline, and Clerk authentication integration. This epic delivers a working application shell with user login capabilities, providing the infrastructure all future features will build upon.
 
 ## Story 1.1: Initialize Remix Project with TypeScript
 
@@ -30,19 +30,21 @@ so that we can persist application data.
 5. Connection pooling configured for production use via Neon
 6. Local PostgreSQL setup documented for development (or use Neon dev database)
 
-## Story 1.3: Configure Render Deployment Pipeline
+## Story 1.3: Configure Vercel Deployment Pipeline
 
 As a developer,
-I want automated deployment to Render,
-so that code changes are automatically deployed.
+I want automated deployment to Vercel,
+so that code changes are automatically deployed with preview environments.
 
 ### Acceptance Criteria
-1. render.yaml configuration file created with build and start commands
-2. Environment variables configured in Render dashboard
-3. Automatic deploys from main branch enabled
-4. Health check endpoint implemented (/health)
-5. Deployment successful with "Hello World" page visible
-6. Build logs accessible and deployment notifications configured
+1. Vercel project created and linked to GitHub repository
+2. Environment variables configured in Vercel dashboard (DATABASE_URL, CLERK_*, etc.)
+3. Automatic deployments from main branch enabled
+4. Preview deployments for pull requests configured
+5. Custom domain configured (if available)
+6. Build settings optimized for React Router v7
+7. Deployment successful with application accessible via Vercel URL
+8. Vercel Analytics and Web Vitals enabled for monitoring
 
 ## Story 1.4: Implement User Authentication with Clerk
 

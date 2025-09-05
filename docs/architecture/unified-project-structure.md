@@ -6,53 +6,51 @@ persona-compass/
 │   └── workflows/
 │       ├── ci.yaml
 │       └── deploy.yaml
-├── apps/                       # Application packages
-│   ├── web/                    # Remix frontend application
-│   │   ├── app/
-│   │   │   ├── components/     # UI components
-│   │   │   ├── routes/         # Page routes
-│   │   │   ├── hooks/          # Custom React hooks
-│   │   │   ├── lib/            # Frontend utilities
-│   │   │   ├── styles/         # Global styles
-│   │   │   ├── entry.client.tsx
-│   │   │   ├── entry.server.tsx
-│   │   │   └── root.tsx
-│   │   ├── public/             # Static assets
-│   │   ├── tests/              # Frontend tests
-│   │   ├── .env.example
-│   │   ├── package.json
-│   │   ├── remix.config.js
-│   │   └── tailwind.config.js
-│   └── api/                    # Express backend application
-│       ├── src/
-│       │   ├── routes/         # API routes
-│       │   ├── controllers/    # Route controllers
-│       │   ├── services/       # Business logic
-│       │   ├── repositories/   # Data access layer
-│       │   ├── middleware/     # Express middleware
-│       │   ├── agents/         # ADK agent definitions
-│       │   ├── utils/          # Backend utilities
-│       │   └── app.ts          # Express app setup
-│       ├── prisma/
-│       │   ├── schema.prisma   # Database schema
-│       │   └── migrations/     # Migration files
-│       ├── tests/              # Backend tests
-│       ├── .env.example
-│       └── package.json
-├── packages/                   # Shared packages
-│   ├── shared/                 # Shared types and utilities
-│   │   ├── src/
-│   │   │   ├── types/          # TypeScript interfaces
-│   │   │   │   ├── user.ts
-│   │   │   │   ├── brief.ts
-│   │   │   │   └── validation.ts
-│   │   │   ├── constants/      # Shared constants
-│   │   │   └── utils/          # Shared utilities
-│   │   └── package.json
-│   └── config/                 # Shared configuration
-│       ├── eslint/
-│       ├── typescript/
-│       └── vitest/
+├── app/                        # React Router app directory
+│   ├── routes/                 # File-based routing
+│   │   ├── _index.tsx         # Home route
+│   │   ├── briefs/            # Brief routes
+│   │   └── validations/       # Validation routes
+│   ├── components/             # Shared UI components
+│   ├── hooks/                  # Custom React hooks
+│   ├── services/               # API service layer
+│   ├── stores/                 # Zustand stores
+│   ├── lib/                    # Utilities and helpers
+│   ├── types/                  # TypeScript interfaces
+│   │   ├── user.ts
+│   │   ├── brief.ts
+│   │   └── validation.ts
+│   ├── app.css                 # Global styles
+│   ├── root.tsx                # Root layout component
+│   └── routes.ts               # Route configuration
+├── public/                     # Static assets
+├── tests/                      # Test files
+├── api/                        # Express backend (separate deployment)
+│   ├── src/
+│   │   ├── routes/             # API routes
+│   │   ├── controllers/        # Route controllers
+│   │   ├── services/           # Business logic
+│   │   ├── repositories/       # Data access layer
+│   │   ├── middleware/         # Express middleware
+│   │   ├── agents/             # ADK agent definitions
+│   │   ├── types/              # API type definitions
+│   │   ├── utils/              # Backend utilities
+│   │   └── app.ts              # Express app setup
+│   ├── prisma/
+│   │   ├── schema.prisma       # Database schema
+│   │   └── migrations/         # Migration files
+│   ├── tests/                  # Backend tests
+│   ├── .env.example
+│   └── package.json
+├── .dockerignore
+├── .gitignore
+├── Dockerfile                  # Docker deployment config
+├── .env.example
+├── package.json
+├── react-router.config.ts      # React Router configuration
+├── tsconfig.json
+├── vite.config.ts
+└── tailwind.config.js
 ├── infrastructure/             # IaC definitions
 │   ├── terraform/
 │   │   ├── environments/

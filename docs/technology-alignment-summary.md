@@ -11,7 +11,7 @@ This document summarizes the technology alignment decisions made to resolve conf
 | Component | Original PRD | Original Architecture | **ALIGNED DECISION** | Rationale |
 |-----------|--------------|----------------------|---------------------|-----------|
 | **Database** | MongoDB | PostgreSQL (Neon) | **PostgreSQL (Neon)** | Better for structured data, type safety with Prisma, serverless scaling |
-| **Deployment** | Render | Vercel | **Render** | Simpler deployment for full-stack Node.js applications |
+| **Deployment** | Render | Vercel | **Vercel** | Native React Router v7 support, integrated services (KV, Blob), edge network optimization |
 | **Authentication** | Basic Auth | Clerk | **Clerk** | Enterprise-grade security, reduced implementation complexity |
 | **CSS Framework** | Tailwind 3.4+ | Tailwind 3.4+ | **Tailwind 4.0+** | Latest version with Lightning CSS performance benefits |
 
@@ -45,9 +45,9 @@ This document summarizes the technology alignment decisions made to resolve conf
 ### Architecture Updates
 ✅ tech-stack.md
 - Updated Tailwind CSS to version 4.0+
-- Changed deployment platform from Vercel to Render
-- Updated cache/storage from Vercel KV/Blob to Render Redis/Disk
-- Updated monitoring/logging to Render platform services
+- Confirmed Vercel as deployment platform (aligned with React Router v7)
+- Maintained Vercel KV/Blob for cache/storage
+- Maintained Vercel Analytics for monitoring
 
 ✅ deployment-architecture.md
 - Changed from Vercel serverless to Render web service
@@ -67,7 +67,7 @@ This document summarizes the technology alignment decisions made to resolve conf
 ### Positive Impacts
 1. **Unified Database**: PostgreSQL provides better type safety and relational data modeling
 2. **Simplified Auth**: Clerk removes need to build authentication from scratch
-3. **Single Platform**: Render hosts both frontend and backend together
+3. **Single Platform**: Vercel hosts both frontend and backend with edge optimization
 4. **Modern CSS**: Tailwind v4 offers performance improvements
 
 ### Migration Considerations
@@ -82,7 +82,7 @@ This document summarizes the technology alignment decisions made to resolve conf
    - Developer can proceed with Story 1.1 implementation
    - Set up Neon database instance
    - Create Clerk account and configure authentication
-   - Prepare Render deployment environment
+   - Prepare Vercel project and environment
 
 2. **Documentation Maintenance**:
    - Continue updating remaining architecture documents as needed
@@ -90,9 +90,9 @@ This document summarizes the technology alignment decisions made to resolve conf
    - Ensure all stories reflect aligned technology stack
 
 3. **Technical Decisions Pending**:
-   - Specific Redis configuration on Render
-   - File storage strategy on Render (disk vs external service)
-   - Monitoring and observability tools beyond Render's built-in
+   - Vercel KV configuration for session management
+   - Vercel Blob storage for file exports
+   - Vercel Analytics and Web Vitals configuration
 
 ## Approval
 

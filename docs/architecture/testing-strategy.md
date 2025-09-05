@@ -44,11 +44,23 @@ apps/api/tests/
 ### Frontend Component Test
 ```typescript
 import { render, screen } from '@testing-library/react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { ClerkProvider } from '@clerk/react-router';
 import { BriefForm } from '~/components/features/brief-form';
+
+const queryClient = new QueryClient();
+
+const wrapper = ({ children }: { children: React.ReactNode }) => (
+  <ClerkProvider publishableKey="test">
+    <QueryClientProvider client={queryClient}>
+      {children}
+    </QueryClientProvider>
+  </ClerkProvider>
+);
 
 describe('BriefForm', () => {
   it('renders all required fields', () => {
-    render(<BriefForm mode="create" />);
+    render(<BriefForm mode="create" />, { wrapper });
     
     expect(screen.getByLabelText('Feature Title')).toBeInTheDocument();
     expect(screen.getByLabelText('Problem Statement')).toBeInTheDocument();

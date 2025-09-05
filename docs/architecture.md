@@ -20,7 +20,7 @@ N/A - Greenfield project
 
 ### Technical Summary
 
-The Compass employs a modern fullstack architecture with a Remix-based frontend for server-side rendering and optimal performance, paired with an Express.js backend API that orchestrates AI persona agents built with Google's Agent Development Kit (ADK). The system follows a modular monolith approach deployed as a single application to Vercel, leveraging edge functions for API routes and Vercel KV for session management. Neon provides a serverless PostgreSQL database with automatic scaling and branching capabilities, while the ADK agents powered by Gemini 1.5 Pro conduct structured persona interviews. This architecture prioritizes rapid development velocity and operational simplicity while maintaining clear module boundaries for future scaling.
+The Compass employs a modern fullstack architecture with React Router v7 following the default template structure, providing both client and server-side rendering capabilities. The frontend uses the standard `app/` directory structure with file-based routing in `app/routes/`, paired with an Express.js backend API that orchestrates AI persona agents built with Google's Agent Development Kit (ADK). The system deploys to Vercel with the frontend as a React Router app and the backend API as serverless functions, leveraging Vercel KV for session management. Neon provides a serverless PostgreSQL database with automatic scaling and branching capabilities, while the ADK agents powered by Gemini 1.5 Pro conduct structured persona interviews. This architecture prioritizes rapid development velocity and operational simplicity while maintaining clear module boundaries for future scaling.
 
 ### Platform and Infrastructure Choice
 
@@ -48,7 +48,7 @@ graph TB
     end
     
     subgraph "Application Layer"
-        Remix[Remix App<br/>SSR + React]
+        ReactApp[React Router SPA<br/>Client-Side Routing]
         API[Express API<br/>REST Endpoints]
     end
     
@@ -63,18 +63,18 @@ graph TB
     
     Browser --> CDN
     Browser --> Edge
-    Edge --> Remix
-    Remix --> API
+    Edge --> ReactApp
+    ReactApp --> API
     API --> KV
     API --> Neon
     API --> Vertex
-    Remix --> KV
+    ReactApp --> API
 ```
 
 ### Architectural Patterns
 
-- **Jamstack Architecture:** Static assets + serverless API endpoints - _Rationale:_ Optimal performance with CDN distribution and reduced operational overhead
-- **Server-Side Rendering (SSR):** Remix handles initial render server-side - _Rationale:_ Better SEO, faster perceived performance, and simplified state management
+- **Single-Page Application (SPA):** React Router for client-side routing with static hosting - _Rationale:_ Optimal performance for interactive PM tools, simplified deployment, better developer experience
+- **Static Hosting with API Backend:** Decoupled frontend served from CDN with separate API - _Rationale:_ Independent scaling, faster iterations, and optimal caching strategies
 - **Feature-Oriented Modules:** Organize code by feature rather than technical layer - _Rationale:_ Improved developer experience and easier feature iteration
 - **Repository Pattern:** Abstract PostgreSQL operations behind clean interfaces - _Rationale:_ Testability and potential future database migration flexibility
 - **Agent-Based Architecture:** ADK agents encapsulate persona behaviors and interview logic - _Rationale:_ Modular, maintainable AI personas with consistent behavior and easy testing
@@ -91,9 +91,9 @@ This is the DEFINITIVE technology selection for the entire project. All developm
 | Category | Technology | Version | Purpose | Rationale |
 |----------|------------|---------|---------|-----------|
 | Frontend Language | TypeScript | 5.3+ | Type-safe frontend development | Type safety critical for maintainability and AI agent comprehension |
-| Frontend Framework | Remix | 2.5+ | SSR React framework | Superior form handling and progressive enhancement for form-heavy workflows |
+| Frontend Framework | React Router | 7.0+ | Client-side routing for React | Modern routing with data loading, actions, and error boundaries for SPAs |
 | UI Component Library | Radix UI + Tailwind | Radix 1.1+ | Accessible components + styling | Headless components ensure accessibility, Tailwind for rapid styling |
-| State Management | Remix Built-in | N/A | Form and server state | Remix's loader/action pattern eliminates need for separate state management |
+| State Management | React Query + Zustand | 5.0+ / 4.5+ | Server and client state | React Query for server state caching, Zustand for global client state |
 | Backend Language | TypeScript | 5.3+ | Type-safe backend development | Shared types between frontend/backend, better IDE support |
 | Backend Framework | Express.js | 4.18+ | REST API server | Mature, simple, extensive middleware ecosystem |
 | AI Framework | Google ADK | Latest | Agent development | Structured agent development with built-in tools and testing |
@@ -101,11 +101,11 @@ This is the DEFINITIVE technology selection for the entire project. All developm
 | Database | PostgreSQL (Neon) | 16+ | Primary data store | Structured data with JSONB flexibility, serverless scaling |
 | Cache | Vercel KV | N/A | Session/cache storage | Redis-compatible, integrated with Vercel |
 | File Storage | Vercel Blob | N/A | PDF exports storage | Integrated blob storage for generated reports |
-| Authentication | Clerk | 4.0+ | User authentication | Production-ready auth with minimal implementation |
+| Authentication | Clerk React Router | 5.0+ | User authentication | Clerk SDK optimized for React Router with route protection |
 | Frontend Testing | Vitest + Testing Library | Vitest 1.0+ | Unit/integration tests | Fast, ESM-native testing aligned with Vite |
 | Backend Testing | Vitest | 1.0+ | API testing | Consistent testing framework across stack |
 | E2E Testing | Playwright | 1.40+ | End-to-end testing | Cross-browser testing with good debugging |
-| Build Tool | Vite | 5.0+ | Frontend bundling | Fast builds, native ESM, Remix compatible |
+| Build Tool | Vite | 5.0+ | Frontend bundling | Fast builds, native ESM, React Router compatible |
 | Bundler | esbuild (via Vite) | N/A | JS/TS compilation | Blazing fast compilation |
 | IaC Tool | Terraform | 1.6+ | Infrastructure as code | Manage Vercel, Neon resources declaratively |
 | CI/CD | GitHub Actions | N/A | Continuous deployment | Native GitHub integration, free tier sufficient |
@@ -500,18 +500,18 @@ components:
 
 ## Components
 
-### Web Frontend (Remix App)
-**Responsibility:** Server-side rendered React application providing the user interface for product managers to create feature briefs, trigger validations, and review results
+### Web Frontend (React Router App)
+**Responsibility:** React Router v7 application with file-based routing providing the user interface for product managers to create feature briefs, trigger validations, and review results
 
 **Key Interfaces:**
-- HTTP requests to Express API via fetch
-- Clerk SDK for authentication
-- Form actions for brief submission
+- HTTP requests to Express API via fetch/axios
+- Clerk React Router SDK for authentication
+- React Query for server state management
 - WebSocket connection for real-time validation progress
 
-**Dependencies:** Express API, Clerk Auth, Vercel KV
+**Dependencies:** Express API, Clerk Auth (React Router version)
 
-**Technology Stack:** Remix 2.5+, React 18+, TypeScript, Radix UI, Tailwind CSS
+**Technology Stack:** React Router 7.0+, React 18+, TypeScript, Radix UI, Tailwind CSS, React Query, Zustand
 
 ### API Service (Express Backend)
 **Responsibility:** RESTful API service orchestrating business logic, database operations, and AI agent interactions
@@ -596,7 +596,7 @@ components:
 ```mermaid
 graph LR
     subgraph "Frontend"
-        Remix[Remix App]
+        ReactApp[React Router App]
     end
     
     subgraph "Backend Services"
@@ -615,8 +615,8 @@ graph LR
         Vertex[Vertex AI]
     end
     
-    Remix -->|REST API| API
-    Remix -->|Auth| Clerk
+    ReactApp -->|REST API| API
+    ReactApp -->|Auth| Clerk
     API -->|Query/Mutation| DB
     API -->|Cache| KV
     API -->|Invoke| ADK
@@ -691,32 +691,32 @@ graph LR
 sequenceDiagram
     participant U as User
     participant B as Browser
-    participant R as Remix App
+    participant R as React Router App
     participant C as Clerk
     participant A as Express API
     participant D as Database
 
     U->>B: Navigate to app
-    B->>R: Request page
-    R->>C: Check session
+    B->>R: Load SPA
+    R->>C: Check session (Clerk React Router)
     alt No session
         C-->>R: No session
-        R-->>B: Redirect to login
+        R-->>B: Redirect to /sign-in
         B->>C: Show Clerk UI
         U->>C: Enter credentials
         C->>C: Validate
-        C-->>B: Set JWT cookie
+        C-->>B: Set session token
         B->>R: Redirect to app
     end
-    R->>C: Validate JWT
-    C-->>R: User data
-    R->>A: API request with JWT
+    R->>C: Get auth token
+    C-->>R: Auth token
+    R->>A: API request with Bearer token
     A->>C: Verify token
     C-->>A: Token valid
     A->>D: Get user data
     D-->>A: User record
     A-->>R: API response
-    R-->>B: Render page
+    R-->>B: Update UI
 ```
 
 ### Feature Brief Validation Flow
@@ -724,7 +724,7 @@ sequenceDiagram
 ```mermaid
 sequenceDiagram
     participant U as User
-    participant R as Remix App
+    participant R as React Router App
     participant A as Express API
     participant K as Vercel KV
     participant D as Database
@@ -774,7 +774,7 @@ sequenceDiagram
 ```mermaid
 sequenceDiagram
     participant U as User
-    participant R as Remix App
+    participant R as React Router App
     participant A as Express API
     participant D as Database
     participant P as PDF Service
@@ -801,7 +801,7 @@ sequenceDiagram
 ```mermaid
 sequenceDiagram
     participant U as User
-    participant R as Remix App
+    participant R as React Router App
     participant A as Express API
     participant D as Database
     participant K as Vercel KV
@@ -832,7 +832,7 @@ sequenceDiagram
 ```mermaid
 sequenceDiagram
     participant U as User
-    participant R as Remix App
+    participant R as React Router App
     participant A as Express API
     participant ADK as ADK Agent
     participant V as Vertex AI
@@ -992,19 +992,16 @@ INSERT INTO personas (id, name, description, role, goals, pain_points, adk_agent
 #### Component Organization
 ```
 app/
-├── routes/                    # Remix routes (file-based routing)
-│   ├── _index.tsx             # Dashboard/home
-│   ├── briefs/
-│   │   ├── new.tsx            # Create new brief
-│   │   ├── $id.tsx            # View brief
-│   │   └── $id.edit.tsx       # Edit brief
-│   ├── validations/
-│   │   ├── $id.tsx            # View validation
-│   │   └── $id.export.tsx     # Export handler
-│   ├── history.tsx            # Search history
-│   └── api/                   # API routes
-│       └── webhooks/
-│           └── clerk.tsx       # Clerk webhooks
+├── routes/                    # File-based routing (React Router v7)
+│   ├── _index.tsx            # Home/Dashboard route
+│   ├── briefs._index.tsx     # List briefs
+│   ├── briefs.new.tsx        # Create new brief
+│   ├── briefs.$id.tsx        # View brief detail
+│   ├── briefs.$id.edit.tsx   # Edit brief
+│   ├── validations.$id.tsx   # View validation
+│   ├── history.tsx           # Search history
+│   ├── sign-in.tsx           # Sign in page
+│   └── sign-up.tsx           # Sign up page
 ├── components/
 │   ├── ui/                    # Radix UI primitives
 │   │   ├── button.tsx
@@ -1027,9 +1024,11 @@ app/
 
 #### Component Template
 ```typescript
-import { Form, useSubmit, useNavigation } from "@remix-run/react";
+import { useNavigate } from "react-router";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "~/components/ui/button";
 import { TextField } from "~/components/ui/text-field";
+import { createBrief, updateBrief } from "~/services/briefs";
 import type { FeatureBrief } from "~/types";
 
 interface BriefFormProps {
@@ -1038,26 +1037,39 @@ interface BriefFormProps {
 }
 
 export function BriefForm({ brief, mode }: BriefFormProps) {
-  const submit = useSubmit();
-  const navigation = useNavigation();
-  const isSubmitting = navigation.state === "submitting";
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  
+  const mutation = useMutation({
+    mutationFn: mode === 'create' ? createBrief : updateBrief,
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['briefs'] });
+      navigate(`/briefs/${data.id}`);
+    },
+  });
+  
+  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const formData = new FormData(e.currentTarget);
+    mutation.mutate(Object.fromEntries(formData));
+  };
   
   return (
-    <Form method="post" className="space-y-6">
+    <form onSubmit={handleSubmit} className="space-y-6">
       <TextField
         name="title"
         label="Feature Title"
         defaultValue={brief?.title}
         required
-        disabled={isSubmitting}
+        disabled={mutation.isPending}
       />
       <Button 
         type="submit" 
-        disabled={isSubmitting}
+        disabled={mutation.isPending}
       >
         {mode === 'create' ? 'Create Brief' : 'Update Brief'}
       </Button>
-    </Form>
+    </form>
   );
 }
 ```
@@ -1066,69 +1078,100 @@ export function BriefForm({ brief, mode }: BriefFormProps) {
 
 #### State Structure
 ```typescript
-// Server state via loaders/actions
-export const loader = async ({ params }: LoaderArgs) => {
-  const job = await getJobStatus(params.jobId);
-  return json({ 
-    status: job.status,
-    progress: job.progress,
-    result: job.result 
+// Server state via React Query
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { getJobStatus } from '~/services/jobs';
+
+export function useJobStatus(jobId: string) {
+  return useQuery({
+    queryKey: ['job', jobId],
+    queryFn: () => getJobStatus(jobId),
+    refetchInterval: (query) => {
+      const data = query.state.data;
+      return data?.status === 'processing' ? 2000 : false;
+    },
   });
-};
+}
 
-// Component consumption
-const { status, progress } = useLoaderData<typeof loader>();
-const revalidator = useRevalidator();
+// Global client state via Zustand
+import { create } from 'zustand';
 
-useEffect(() => {
-  if (status === 'processing') {
-    const interval = setInterval(() => {
-      revalidator.revalidate();
-    }, 2000);
-    return () => clearInterval(interval);
-  }
-}, [status, revalidator]);
+interface AppState {
+  user: User | null;
+  setUser: (user: User | null) => void;
+  sidebarOpen: boolean;
+  toggleSidebar: () => void;
+}
+
+export const useAppStore = create<AppState>((set) => ({
+  user: null,
+  setUser: (user) => set({ user }),
+  sidebarOpen: true,
+  toggleSidebar: () => set((state) => ({ sidebarOpen: !state.sidebarOpen })),
+}));
 ```
 
 #### State Management Patterns
-- Remix loaders for server state
-- Remix actions for mutations
-- useLoaderData for consuming data
-- useFetcher for non-navigation mutations
-- useState for local UI state
+- React Query for server state (caching, synchronization, background updates)
+- Zustand for global client state (user preferences, UI state)
+- React Router loaders for initial data fetching
+- React Router actions for form submissions
+- useState/useReducer for local component state
+- React Hook Form for complex form management
 
 ### Routing Architecture
 
-#### Route Organization
-```
-routes/
-├── _index.tsx                 # / (dashboard)
-├── briefs.tsx                 # /briefs (layout)
-├── briefs._index.tsx          # /briefs (list)
-├── briefs.new.tsx             # /briefs/new
-├── briefs.$id.tsx             # /briefs/:id
-├── validations.$id.tsx        # /validations/:id
-└── history.tsx                # /history
+#### Route Configuration
+```typescript
+// app/routes.ts
+import { type RouteConfig, index, route, layout } from "@react-router/dev/routes";
+
+export default [
+  layout("root.tsx", [
+    index("routes/_index.tsx"),
+    route("briefs", "routes/briefs._index.tsx"),
+    route("briefs/new", "routes/briefs.new.tsx"),
+    route("briefs/:id", "routes/briefs.$id.tsx"),
+    route("briefs/:id/edit", "routes/briefs.$id.edit.tsx"),
+    route("validations/:id", "routes/validations.$id.tsx"),
+    route("history", "routes/history.tsx"),
+    route("sign-in", "routes/sign-in.tsx"),
+    route("sign-up", "routes/sign-up.tsx"),
+  ]),
+] satisfies RouteConfig;
 ```
 
 #### Protected Route Pattern
 ```typescript
-import { Outlet } from "@remix-run/react";
-import { LoaderArgs, redirect } from "@remix-run/node";
-import { getAuth } from "@clerk/remix/ssr.server";
+import { Navigate, Outlet } from "react-router";
+import { useAuth } from "@clerk/react-router";
 
-export const loader = async (args: LoaderArgs) => {
-  const { userId } = await getAuth(args);
+export function ProtectedRoute() {
+  const { isLoaded, isSignedIn } = useAuth();
   
-  if (!userId) {
-    return redirect("/sign-in");
+  if (!isLoaded) {
+    return <div>Loading...</div>;
   }
   
-  return null;
-};
-
-export default function BriefsLayout() {
+  if (!isSignedIn) {
+    return <Navigate to="/sign-in" replace />;
+  }
+  
   return <Outlet />;
+}
+
+// Alternative using Clerk components
+import { SignedIn, SignedOut, RedirectToSignIn } from "@clerk/react-router";
+
+export function ProtectedPage({ children }: { children: React.ReactNode }) {
+  return (
+    <>
+      <SignedIn>{children}</SignedIn>
+      <SignedOut>
+        <RedirectToSignIn />
+      </SignedOut>
+    </>
+  );
 }
 ```
 
@@ -1136,63 +1179,86 @@ export default function BriefsLayout() {
 
 #### API Client Setup
 ```typescript
-class ApiClient {
-  private baseUrl: string;
-  
-  constructor() {
-    this.baseUrl = process.env.API_URL || 'http://localhost:3001/api/v1';
-  }
-  
-  async request<T>(
-    path: string, 
-    options?: RequestInit,
-    token?: string
-  ): Promise<T> {
-    const headers = {
-      'Content-Type': 'application/json',
-      ...(token && { Authorization: `Bearer ${token}` }),
-      ...options?.headers,
-    };
-    
-    const response = await fetch(`${this.baseUrl}${path}`, {
-      ...options,
-      headers,
-    });
-    
-    if (!response.ok) {
-      throw new Error(`API error: ${response.status}`);
-    }
-    
-    return response.json();
-  }
-}
+import { useAuth } from '@clerk/react-router';
+import axios from 'axios';
 
-export const api = new ApiClient();
+// Create axios instance
+const apiClient = axios.create({
+  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:3001/api/v1',
+  headers: {
+    'Content-Type': 'application/json',
+  },
+});
+
+// Request interceptor to add auth token
+apiClient.interceptors.request.use(async (config) => {
+  // Get token from Clerk
+  const token = await window.Clerk?.session?.getToken();
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
+});
+
+// Response interceptor for error handling
+apiClient.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 401) {
+      // Redirect to sign in
+      window.location.href = '/sign-in';
+    }
+    return Promise.reject(error);
+  }
+);
+
+export default apiClient;
 ```
 
 #### Service Example
 ```typescript
-export class BriefsService {
-  static async create(
-    data: FeatureBriefInput, 
-    token: string
-  ): Promise<FeatureBrief> {
-    return api.request('/feature-briefs', {
-      method: 'POST',
-      body: JSON.stringify(data),
-    }, token);
-  }
+import apiClient from '~/lib/api-client';
+import type { FeatureBrief, FeatureBriefInput } from '~/types';
+
+// Briefs service with React Query integration
+export const briefsService = {
+  async create(data: FeatureBriefInput): Promise<FeatureBrief> {
+    const response = await apiClient.post('/feature-briefs', data);
+    return response.data;
+  },
   
-  static async validate(
-    briefId: string,
-    personaId: string,
-    token: string
-  ): Promise<{ validationId: string }> {
-    return api.request(`/feature-briefs/${briefId}/validate`, {
-      method: 'POST',
-      body: JSON.stringify({ personaId }),
-    }, token);
-  }
+  async getById(id: string): Promise<FeatureBrief> {
+    const response = await apiClient.get(`/feature-briefs/${id}`);
+    return response.data;
+  },
+  
+  async update(id: string, data: Partial<FeatureBriefInput>): Promise<FeatureBrief> {
+    const response = await apiClient.put(`/feature-briefs/${id}`, data);
+    return response.data;
+  },
+  
+  async validate(briefId: string, personaId: string): Promise<{ validationId: string }> {
+    const response = await apiClient.post(`/feature-briefs/${briefId}/validate`, { personaId });
+    return response.data;
+  },
+};
+
+// React Query hooks
+export function useBrief(id: string) {
+  return useQuery({
+    queryKey: ['briefs', id],
+    queryFn: () => briefsService.getById(id),
+  });
+}
+
+export function useCreateBrief() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: briefsService.create,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['briefs'] });
+    },
+  });
 }
 ```
 
@@ -1500,53 +1566,51 @@ persona-compass/
 │   └── workflows/
 │       ├── ci.yaml
 │       └── deploy.yaml
-├── apps/                       # Application packages
-│   ├── web/                    # Remix frontend application
-│   │   ├── app/
-│   │   │   ├── components/     # UI components
-│   │   │   ├── routes/         # Page routes
-│   │   │   ├── hooks/          # Custom React hooks
-│   │   │   ├── lib/            # Frontend utilities
-│   │   │   ├── styles/         # Global styles
-│   │   │   ├── entry.client.tsx
-│   │   │   ├── entry.server.tsx
-│   │   │   └── root.tsx
-│   │   ├── public/             # Static assets
-│   │   ├── tests/              # Frontend tests
-│   │   ├── .env.example
-│   │   ├── package.json
-│   │   ├── remix.config.js
-│   │   └── tailwind.config.js
-│   └── api/                    # Express backend application
-│       ├── src/
-│       │   ├── routes/         # API routes
-│       │   ├── controllers/    # Route controllers
-│       │   ├── services/       # Business logic
-│       │   ├── repositories/   # Data access layer
-│       │   ├── middleware/     # Express middleware
-│       │   ├── agents/         # ADK agent definitions
-│       │   ├── utils/          # Backend utilities
-│       │   └── app.ts          # Express app setup
-│       ├── prisma/
-│       │   ├── schema.prisma   # Database schema
-│       │   └── migrations/     # Migration files
-│       ├── tests/              # Backend tests
-│       ├── .env.example
-│       └── package.json
-├── packages/                   # Shared packages
-│   ├── shared/                 # Shared types and utilities
-│   │   ├── src/
-│   │   │   ├── types/          # TypeScript interfaces
-│   │   │   │   ├── user.ts
-│   │   │   │   ├── brief.ts
-│   │   │   │   └── validation.ts
-│   │   │   ├── constants/      # Shared constants
-│   │   │   └── utils/          # Shared utilities
-│   │   └── package.json
-│   └── config/                 # Shared configuration
-│       ├── eslint/
-│       ├── typescript/
-│       └── vitest/
+├── app/                        # React Router app directory
+│   ├── routes/                 # File-based routing
+│   │   ├── _index.tsx         # Home route
+│   │   ├── briefs/            # Brief routes
+│   │   └── validations/       # Validation routes
+│   ├── components/             # Shared UI components
+│   ├── hooks/                  # Custom React hooks
+│   ├── services/               # API service layer
+│   ├── stores/                 # Zustand stores
+│   ├── lib/                    # Utilities and helpers
+│   ├── types/                  # TypeScript interfaces
+│   │   ├── user.ts
+│   │   ├── brief.ts
+│   │   └── validation.ts
+│   ├── app.css                 # Global styles
+│   ├── root.tsx                # Root layout component
+│   └── routes.ts               # Route configuration
+├── public/                     # Static assets
+├── tests/                      # Test files
+├── api/                        # Express backend (separate deployment)
+│   ├── src/
+│   │   ├── routes/             # API routes
+│   │   ├── controllers/        # Route controllers
+│   │   ├── services/           # Business logic
+│   │   ├── repositories/       # Data access layer
+│   │   ├── middleware/         # Express middleware
+│   │   ├── agents/             # ADK agent definitions
+│   │   ├── types/              # API type definitions
+│   │   ├── utils/              # Backend utilities
+│   │   └── app.ts              # Express app setup
+│   ├── prisma/
+│   │   ├── schema.prisma       # Database schema
+│   │   └── migrations/         # Migration files
+│   ├── tests/                  # Backend tests
+│   ├── .env.example
+│   └── package.json
+├── .dockerignore
+├── .gitignore
+├── Dockerfile                  # Docker deployment config
+├── .env.example
+├── package.json
+├── react-router.config.ts      # React Router configuration
+├── tsconfig.json
+├── vite.config.ts
+└── tailwind.config.js
 ├── infrastructure/             # IaC definitions
 │   ├── terraform/
 │   │   ├── environments/
@@ -1642,11 +1706,12 @@ npm run format
 #### Required Environment Variables
 ```bash
 # Frontend (apps/web/.env.local)
-CLERK_PUBLISHABLE_KEY=pk_test_...
-CLERK_SECRET_KEY=sk_test_...
-NEXT_PUBLIC_CLERK_SIGN_IN_URL=/sign-in
-NEXT_PUBLIC_CLERK_SIGN_UP_URL=/sign-up
-API_URL=http://localhost:3001/api/v1
+VITE_CLERK_PUBLISHABLE_KEY=pk_test_...
+VITE_CLERK_SIGN_IN_PATH=/sign-in
+VITE_CLERK_SIGN_UP_PATH=/sign-up
+VITE_CLERK_SIGN_IN_FALLBACK_REDIRECT_URL=/
+VITE_CLERK_SIGN_UP_FALLBACK_REDIRECT_URL=/
+VITE_API_URL=http://localhost:3001/api/v1
 
 # Backend (apps/api/.env)
 DATABASE_URL=postgres://user:pass@host/db?sslmode=require
@@ -1669,9 +1734,10 @@ LOG_LEVEL=debug
 ### Deployment Strategy
 
 **Frontend Deployment:**
-- **Platform:** Vercel
-- **Build Command:** `npm run build:web`
-- **Output Directory:** `apps/web/build`
+- **Platform:** Vercel (Static Site)
+- **Build Command:** `npm run build`
+- **Output Directory:** `dist`
+- **Framework Preset:** Vite
 - **CDN/Edge:** Vercel Global Edge Network
 
 **Backend Deployment:**
@@ -1813,11 +1879,23 @@ apps/api/tests/
 #### Frontend Component Test
 ```typescript
 import { render, screen } from '@testing-library/react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { ClerkProvider } from '@clerk/react-router';
 import { BriefForm } from '~/components/features/brief-form';
+
+const queryClient = new QueryClient();
+
+const wrapper = ({ children }: { children: React.ReactNode }) => (
+  <ClerkProvider publishableKey="test">
+    <QueryClientProvider client={queryClient}>
+      {children}
+    </QueryClientProvider>
+  </ClerkProvider>
+);
 
 describe('BriefForm', () => {
   it('renders all required fields', () => {
-    render(<BriefForm mode="create" />);
+    render(<BriefForm mode="create" />, { wrapper });
     
     expect(screen.getByLabelText('Feature Title')).toBeInTheDocument();
     expect(screen.getByLabelText('Problem Statement')).toBeInTheDocument();
@@ -1878,7 +1956,7 @@ test('complete validation flow', async ({ page }) => {
 ## Coding Standards
 
 ### Critical Fullstack Rules
-- **Type Sharing:** Always define types in packages/shared and import from there
+- **Type Definitions:** Define types in app/types folder for frontend, api/src/types for backend
 - **API Calls:** Never make direct HTTP calls - use the service layer
 - **Environment Variables:** Access only through config objects, never process.env directly
 - **Error Handling:** All API routes must use the standard error handler

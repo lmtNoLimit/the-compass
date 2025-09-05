@@ -1,7 +1,7 @@
 # Coding Standards
 
 ## Critical Fullstack Rules
-- **Type Sharing:** Always define types in packages/shared and import from there
+- **Type Definitions:** Define types in app/types folder for frontend, api/src/types for backend
 - **API Calls:** Never make direct HTTP calls - use the service layer
 - **Environment Variables:** Access only through config objects, never process.env directly
 - **Error Handling:** All API routes must use the standard error handler

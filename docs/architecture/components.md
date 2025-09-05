@@ -1,17 +1,17 @@
 # Components
 
-## Web Frontend (Remix App)
-**Responsibility:** Server-side rendered React application providing the user interface for product managers to create feature briefs, trigger validations, and review results
+## Web Frontend (React Router App)
+**Responsibility:** React Router v7 application with file-based routing providing the user interface for product managers to create feature briefs, trigger validations, and review results
 
 **Key Interfaces:**
-- HTTP requests to Express API via fetch
-- Clerk SDK for authentication
-- Form actions for brief submission
+- HTTP requests to Express API via fetch/axios
+- Clerk React Router SDK for authentication
+- React Query for server state management
 - WebSocket connection for real-time validation progress
 
-**Dependencies:** Express API, Clerk Auth, Vercel KV
+**Dependencies:** Express API, Clerk Auth (React Router version)
 
-**Technology Stack:** Remix 2.5+, React 18+, TypeScript, Radix UI, Tailwind CSS
+**Technology Stack:** React Router 7.0+, React 18+, TypeScript, Radix UI, Tailwind CSS, React Query, Zustand
 
 ## API Service (Express Backend)
 **Responsibility:** RESTful API service orchestrating business logic, database operations, and AI agent interactions
@@ -96,7 +96,7 @@
 ```mermaid
 graph LR
     subgraph "Frontend"
-        Remix[Remix App]
+        ReactApp[React Router App]
     end
     
     subgraph "Backend Services"
@@ -115,8 +115,8 @@ graph LR
         Vertex[Vertex AI]
     end
     
-    Remix -->|REST API| API
-    Remix -->|Auth| Clerk
+    ReactApp -->|REST API| API
+    ReactApp -->|Auth| Clerk
     API -->|Query/Mutation| DB
     API -->|Cache| KV
     API -->|Invoke| ADK

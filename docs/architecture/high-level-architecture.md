@@ -2,7 +2,7 @@
 
 ## Technical Summary
 
-The Compass employs a modern fullstack architecture with a Remix-based frontend for server-side rendering and optimal performance, paired with an Express.js backend API that orchestrates AI persona agents built with Google's Agent Development Kit (ADK). The system follows a modular monolith approach deployed as a single application to Vercel, leveraging edge functions for API routes and Vercel KV for session management. Neon provides a serverless PostgreSQL database with automatic scaling and branching capabilities, while the ADK agents powered by Gemini 1.5 Pro conduct structured persona interviews. This architecture prioritizes rapid development velocity and operational simplicity while maintaining clear module boundaries for future scaling.
+The Compass employs a modern fullstack architecture with React Router v7 following the default template structure, providing both client and server-side rendering capabilities. The frontend uses the standard `app/` directory structure with file-based routing in `app/routes/`, paired with an Express.js backend API that orchestrates AI persona agents built with Google's Agent Development Kit (ADK). The system deploys to Vercel with the frontend as a React Router app and the backend API as serverless functions, leveraging Vercel KV for session management. Neon provides a serverless PostgreSQL database with automatic scaling and branching capabilities, while the ADK agents powered by Gemini 1.5 Pro conduct structured persona interviews. This architecture prioritizes rapid development velocity and operational simplicity while maintaining clear module boundaries for future scaling.
 
 ## Platform and Infrastructure Choice
 
@@ -30,7 +30,7 @@ graph TB
     end
     
     subgraph "Application Layer"
-        Remix[Remix App<br/>SSR + React]
+        ReactApp[React Router SPA<br/>Client-Side Routing]
         API[Express API<br/>REST Endpoints]
     end
     
@@ -45,18 +45,18 @@ graph TB
     
     Browser --> CDN
     Browser --> Edge
-    Edge --> Remix
-    Remix --> API
+    Edge --> ReactApp
+    ReactApp --> API
     API --> KV
     API --> Neon
     API --> Vertex
-    Remix --> KV
+    ReactApp --> API
 ```
 
 ## Architectural Patterns
 
-- **Jamstack Architecture:** Static assets + serverless API endpoints - _Rationale:_ Optimal performance with CDN distribution and reduced operational overhead
-- **Server-Side Rendering (SSR):** Remix handles initial render server-side - _Rationale:_ Better SEO, faster perceived performance, and simplified state management
+- **Single-Page Application (SPA):** React Router for client-side routing with static hosting - _Rationale:_ Optimal performance for interactive PM tools, simplified deployment, better developer experience
+- **Static Hosting with API Backend:** Decoupled frontend served from CDN with separate API - _Rationale:_ Independent scaling, faster iterations, and optimal caching strategies
 - **Feature-Oriented Modules:** Organize code by feature rather than technical layer - _Rationale:_ Improved developer experience and easier feature iteration
 - **Repository Pattern:** Abstract PostgreSQL operations behind clean interfaces - _Rationale:_ Testability and potential future database migration flexibility
 - **Agent-Based Architecture:** ADK agents encapsulate persona behaviors and interview logic - _Rationale:_ Modular, maintainable AI personas with consistent behavior and easy testing

@@ -123,7 +123,7 @@ This architecture allows future migration to microservices if needed while keepi
 - **Vertex AI SDK** will be accessed through Google Cloud's Node.js client library
 - **Authentication** will use simple email/password initially with migration path to SSO
 - **File exports** (PDF/Markdown) will be generated server-side using Puppeteer or similar
-- **Render deployment** will use their Node.js buildpack with automatic deploys from main branch
+- **Vercel deployment** will use React Router preset with automatic deploys and preview environments
 - **Environment variables** will manage API keys and configuration across environments
 - **Rate limiting** will be implemented at application level to manage Vertex AI quotas
 - **Persona definitions** will be stored as Vertex AI agent configurations with version control
@@ -143,7 +143,7 @@ This architecture allows future migration to microservices if needed while keepi
 
 ## Epic 1: Foundation & Authentication Infrastructure
 
-Establish the core technical foundation including Remix setup, MongoDB connection, Render deployment pipeline, and basic authentication system. This epic delivers a working application shell with user login capabilities, providing the infrastructure all future features will build upon.
+Establish the core technical foundation including React Router setup, PostgreSQL (Neon) connection, Vercel deployment pipeline, and Clerk authentication system. This epic delivers a working application shell with user login capabilities, providing the infrastructure all future features will build upon.
 
 ### Story 1.1: Initialize Remix Project with TypeScript
 
@@ -173,15 +173,15 @@ so that we can persist application data.
 5. Connection pooling configured for production use
 6. Local MongoDB setup documented for development
 
-### Story 1.3: Configure Render Deployment Pipeline
+### Story 1.3: Configure Vercel Deployment Pipeline
 
 As a developer,
-I want automated deployment to Render,
-so that code changes are automatically deployed.
+I want automated deployment to Vercel,
+so that code changes are automatically deployed with preview environments.
 
 #### Acceptance Criteria
-1. render.yaml configuration file created with build and start commands
-2. Environment variables configured in Render dashboard
+1. Vercel project created and linked to GitHub repository
+2. Environment variables configured in Vercel dashboard (DATABASE_URL, CLERK_*, etc.)
 3. Automatic deploys from main branch enabled
 4. Health check endpoint implemented (/health)
 5. Deployment successful with "Hello World" page visible
@@ -536,7 +536,7 @@ so that I can efficiently manage my validation library.
 ✅ Goals clearly defined with measurable outcomes
 ✅ Requirements comprehensive (10 functional, 10 non-functional)
 ✅ UI/UX vision established with accessibility standards
-✅ Technical stack specified (Remix, MongoDB, Vertex AI, Render)
+✅ Technical stack specified (React Router, PostgreSQL, Vertex AI, Vercel)
 ✅ 5 Epics with 25 total user stories
 ✅ All stories include clear acceptance criteria
 ✅ Stories sized appropriately for AI agent execution
@@ -574,7 +574,7 @@ Please create a comprehensive technical architecture document for The Compass ba
 3. Data models and database schema design
 4. Vertex AI agent configuration and prompt engineering approach
 5. Security architecture including authentication and data protection
-6. Deployment architecture for Render with scaling considerations
+6. Deployment architecture for Vercel with edge optimization and scaling
 7. Testing strategy covering unit, integration, and AI validation testing
 
 Ensure the architecture supports the modular monolith approach with clear boundaries for future microservices migration.

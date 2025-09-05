@@ -2,18 +2,17 @@
 
 ## Deployment Strategy
 
-**Full-Stack Deployment:**
-- **Platform:** Render
-- **Service Type:** Web Service (Node.js)
+**Frontend Deployment:**
+- **Platform:** Vercel (Static Site)
 - **Build Command:** `npm run build`
-- **Start Command:** `npm run start`
-- **Environment:** Node.js 20+
-- **Auto-Deploy:** Enabled from main branch
+- **Output Directory:** `dist`
+- **Framework Preset:** Vite
+- **CDN/Edge:** Vercel Global Edge Network
 
-**Database:**
-- **Platform:** Neon (Serverless PostgreSQL)
-- **Connection:** Via DATABASE_URL environment variable
-- **Pooling:** Handled by Neon automatically
+**Backend Deployment:**
+- **Platform:** Vercel Serverless Functions
+- **Build Command:** `npm run build:api`
+- **Deployment Method:** API routes as serverless functions
 
 ## CI/CD Pipeline
 ```yaml

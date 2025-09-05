@@ -36,7 +36,7 @@ This architecture allows future migration to microservices if needed while keepi
 - **Vertex AI SDK** will be accessed through Google Cloud's Node.js client library
 - **Authentication** will use simple email/password initially with migration path to SSO
 - **File exports** (PDF/Markdown) will be generated server-side using Puppeteer or similar
-- **Render deployment** will use their Node.js buildpack with automatic deploys from main branch
+- **Vercel deployment** will use React Router preset with automatic deploys and preview environments
 - **Environment variables** will manage API keys and configuration across environments
 - **Rate limiting** will be implemented at application level to manage Vertex AI quotas
 - **Persona definitions** will be stored as Vertex AI agent configurations with version control

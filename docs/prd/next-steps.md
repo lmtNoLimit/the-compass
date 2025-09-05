@@ -19,7 +19,7 @@ Please create a comprehensive technical architecture document for The Compass ba
 3. Data models and database schema design
 4. Vertex AI agent configuration and prompt engineering approach
 5. Security architecture including authentication and data protection
-6. Deployment architecture for Render with scaling considerations
+6. Deployment architecture for Vercel with edge optimization and scaling
 7. Testing strategy covering unit, integration, and AI validation testing
 
 Ensure the architecture supports the modular monolith approach with clear boundaries for future microservices migration.

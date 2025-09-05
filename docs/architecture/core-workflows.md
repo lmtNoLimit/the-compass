@@ -6,32 +6,32 @@
 sequenceDiagram
     participant U as User
     participant B as Browser
-    participant R as Remix App
+    participant R as React Router App
     participant C as Clerk
     participant A as Express API
     participant D as Database
 
     U->>B: Navigate to app
-    B->>R: Request page
-    R->>C: Check session
+    B->>R: Load SPA
+    R->>C: Check session (Clerk React Router)
     alt No session
         C-->>R: No session
-        R-->>B: Redirect to login
+        R-->>B: Redirect to /sign-in
         B->>C: Show Clerk UI
         U->>C: Enter credentials
         C->>C: Validate
-        C-->>B: Set JWT cookie
+        C-->>B: Set session token
         B->>R: Redirect to app
     end
-    R->>C: Validate JWT
-    C-->>R: User data
-    R->>A: API request with JWT
+    R->>C: Get auth token
+    C-->>R: Auth token
+    R->>A: API request with Bearer token
     A->>C: Verify token
     C-->>A: Token valid
     A->>D: Get user data
     D-->>A: User record
     A-->>R: API response
-    R-->>B: Render page
+    R-->>B: Update UI
 ```
 
 ## Feature Brief Validation Flow
@@ -39,7 +39,7 @@ sequenceDiagram
 ```mermaid
 sequenceDiagram
     participant U as User
-    participant R as Remix App
+    participant R as React Router App
     participant A as Express API
     participant K as Vercel KV
     participant D as Database
@@ -89,7 +89,7 @@ sequenceDiagram
 ```mermaid
 sequenceDiagram
     participant U as User
-    participant R as Remix App
+    participant R as React Router App
     participant A as Express API
     participant D as Database
     participant P as PDF Service
@@ -116,7 +116,7 @@ sequenceDiagram
 ```mermaid
 sequenceDiagram
     participant U as User
-    participant R as Remix App
+    participant R as React Router App
     participant A as Express API
     participant D as Database
     participant K as Vercel KV
@@ -147,7 +147,7 @@ sequenceDiagram
 ```mermaid
 sequenceDiagram
     participant U as User
-    participant R as Remix App
+    participant R as React Router App
     participant A as Express API
     participant ADK as ADK Agent
     participant V as Vertex AI
