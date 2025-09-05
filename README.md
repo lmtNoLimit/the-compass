@@ -16,22 +16,27 @@ A modern web application built with React Router v7 (Remix), TypeScript, and Tai
 
 ```
 persona-compass/
-├── apps/
-│   └── web/                 # React Router application
-│       ├── app/
-│       │   ├── components/  # UI components
-│       │   ├── routes/      # Page routes
-│       │   ├── hooks/       # Custom React hooks
-│       │   ├── lib/         # Frontend utilities
-│       │   └── styles/      # Global styles
-│       ├── prisma/          # Database schema
-│       └── tests/           # Frontend tests
-├── packages/
-│   └── shared/              # Shared types and utilities
-│       └── src/
-│           ├── types/       # TypeScript interfaces
-│           └── utils/       # Shared utilities
-└── docs/                    # Documentation
+├── app/                     # React Router app directory
+│   ├── components/          # UI components
+│   │   ├── ui/             # Radix UI primitives
+│   │   ├── features/       # Feature-specific components
+│   │   └── layouts/        # Layout components
+│   ├── routes/             # File-based routing
+│   ├── hooks/              # Custom React hooks
+│   ├── services/           # API service layer
+│   ├── stores/             # Zustand state management
+│   ├── lib/                # Utilities and helpers
+│   ├── types/              # TypeScript interfaces
+│   ├── root.tsx           # Root layout component
+│   └── app.css            # Global styles
+├── prisma/                 # Database schema
+├── public/                 # Static assets
+├── tests/                  # Test files
+├── docs/                   # Documentation
+├── react-router.config.ts  # React Router configuration
+├── vite.config.ts         # Vite configuration
+├── tailwind.config.ts     # Tailwind CSS configuration
+└── tsconfig.json          # TypeScript configuration
 ```
 
 ## Getting Started
@@ -56,7 +61,7 @@ npm install
 2. Set up environment variables:
 
 ```bash
-cp apps/web/.env.example apps/web/.env
+cp .env.example .env
 ```
 
 Update the `.env` file with your actual values:
@@ -68,10 +73,10 @@ Update the `.env` file with your actual values:
 
 ```bash
 # Generate Prisma client
-npm run db:generate -w @persona-compass/web
+npm run db:generate
 
 # Run database migrations
-npm run db:migrate -w @persona-compass/web
+npm run db:migrate
 ```
 
 ### Development
@@ -95,13 +100,18 @@ Your application will be available at `http://localhost:5173`.
 - `npm run format` - Format code with Prettier
 - `npm run typecheck` - Run TypeScript checks
 
-#### App-Specific Commands (apps/web)
+#### Database Commands
 
-- `npm run test -w @persona-compass/web` - Run tests
-- `npm run test:watch -w @persona-compass/web` - Run tests in watch mode
-- `npm run db:generate -w @persona-compass/web` - Generate Prisma client
-- `npm run db:migrate -w @persona-compass/web` - Run database migrations
-- `npm run db:studio -w @persona-compass/web` - Open Prisma Studio
+- `npm run db:generate` - Generate Prisma client
+- `npm run db:migrate` - Run database migrations
+- `npm run db:push` - Push schema changes to database
+- `npm run db:studio` - Open Prisma Studio
+
+#### Testing Commands
+
+- `npm run test` - Run tests
+- `npm run test:watch` - Run tests in watch mode
+- `npm run test:ui` - Open Vitest UI
 
 ## External Service Setup
 
@@ -131,10 +141,10 @@ Your application will be available at `http://localhost:5173`.
 Run the test suite:
 
 ```bash
-npm run test -w @persona-compass/web
+npm run test
 ```
 
-Tests are located in `apps/web/tests/` and use:
+Tests are located in `tests/` and use:
 - **Vitest** for test runner
 - **Testing Library** for React component testing
 - **jsdom** for DOM simulation
