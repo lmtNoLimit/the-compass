@@ -10,7 +10,7 @@ A modern web application built with React Router v7 (Remix), TypeScript, and Tai
 - **Database**: PostgreSQL (Neon) with Prisma ORM
 - **Testing**: Vitest 1.0+ with Testing Library
 - **Build Tool**: Vite 5.0+
-- **Deployment**: Render
+- **Deployment**: Vercel
 
 ## Project Structure
 
@@ -129,12 +129,14 @@ Your application will be available at `http://localhost:5173`.
 3. Copy connection string to `.env` file
 4. See [docs/neon-setup.md](./docs/neon-setup.md) for detailed setup
 
-### Render Deployment
+### Vercel Deployment
 
-1. Create account at [render.com](https://render.com)
-2. Connect your GitHub repository
-3. Set up environment variables in Render dashboard
+1. Create account at [vercel.com](https://vercel.com)
+2. Import your GitHub repository
+3. Set up environment variables in Vercel dashboard
 4. Deploy automatically from main branch
+
+The project uses `@vercel/react-router` for optimal React Router v7 integration.
 
 ## Testing
 
