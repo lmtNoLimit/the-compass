@@ -1,0 +1,42 @@
+# Test Agent Configuration for Vertex AI Deployment
+name: test-agent
+version: 1.0.0
+description: Simple test agent for verifying Vertex AI integration
+
+# Agent metadata
+metadata:
+  author: Persona Compass Team
+  created: 2025-01-05
+  tags:
+    - test
+    - integration
+    - vertex-ai
+
+# Deployment configuration
+deployment:
+  runtime: python311
+  memory: 256Mi
+  cpu: 0.25
+  min_replicas: 0
+  max_replicas: 1
+  
+# Environment variables (will be overridden by actual deployment)
+environment:
+  GOOGLE_CLOUD_PROJECT_ID: ${GOOGLE_CLOUD_PROJECT_ID}
+  GOOGLE_CLOUD_REGION: ${GOOGLE_CLOUD_REGION}
+
+# Agent capabilities
+capabilities:
+  - health_check
+  - prompt_processing
+  - context_handling
+
+# Rate limits
+rate_limits:
+  requests_per_minute: 60
+  requests_per_day: 10000
+
+# Logging configuration
+logging:
+  level: INFO
+  format: json

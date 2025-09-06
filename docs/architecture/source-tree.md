@@ -6,6 +6,14 @@ This document describes the actual source tree structure of the Persona Compass 
 
 ```
 persona-compass/
+├── agents/                      # Python AI agents (ADK)
+│   ├── __init__.py             # Package initialization
+│   ├── requirements.txt         # Python dependencies
+│   ├── test_agent.py           # Test agent implementation
+│   ├── config/                 # Agent configurations
+│   │   └── test_agent.yaml     # Test agent config
+│   └── tests/                  # Python agent tests
+│       └── test_agent_test.py  # Test agent unit tests
 ├── app/                          # React Router application (unified full-stack)
 │   ├── components/               # React components
 │   │   ├── features/            # Feature-specific components

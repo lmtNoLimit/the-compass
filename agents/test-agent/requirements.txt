@@ -1,0 +1,16 @@
+# Google ADK (Agent Development Kit)
+google-adk>=0.1.0
+google-cloud-aiplatform>=1.38.0
+
+# Development dependencies
+pytest>=7.4.3
+pytest-asyncio>=0.21.1
+pytest-mock>=3.12.0
+coverage>=7.3.2
+black>=23.11.0
+mypy>=1.7.1
+pylint>=3.0.3
+
+# Utility dependencies
+python-dotenv>=1.0.0
+pydantic>=2.5.2

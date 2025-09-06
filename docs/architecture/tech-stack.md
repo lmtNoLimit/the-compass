@@ -13,6 +13,8 @@ This is the DEFINITIVE technology selection for the entire project. All developm
 | Backend Language | TypeScript | 5.3+ | Type-safe backend development | Shared types between frontend/backend, better IDE support |
 | Backend Framework | Express.js | 4.18+ | REST API server | Mature, simple, extensive middleware ecosystem |
 | AI Framework | Google ADK | Latest | Agent development | Structured agent development with built-in tools and testing |
+| Agent Language | Python | 3.11+ | AI agent development | Required for Google ADK framework |
+| Agent Runtime | Vertex AI | N/A | Agent deployment/hosting | Scalable agent hosting with managed infrastructure |
 | API Style | REST | N/A | HTTP API protocol | Simple, well-understood, sufficient for CRUD operations |
 | Database | PostgreSQL (Neon) | 16+ | Primary data store | Structured data with JSONB flexibility, serverless scaling |
 | Cache | Vercel KV | N/A | Session/cache storage | Redis-compatible, integrated with Vercel |

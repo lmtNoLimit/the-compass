@@ -1,0 +1,67 @@
+schema: 1
+story: '2.1'
+story_title: 'Set Up Google Cloud Project and Vertex AI Access'
+gate: CONCERNS
+status_reason: 'Functional implementation complete but requires production hardening for security and reliability'
+reviewer: 'Quinn (Test Architect)'
+updated: '2025-01-05T22:00:00Z'
+
+top_issues:
+  - issue: 'Service account key management needs production-grade solution'
+    severity: medium
+    suggested_owner: dev
+    refs: ['.env.example', 'app/lib/vertex-ai.server.ts']
+    
+  - issue: 'In-memory rate limiting will not persist across restarts'
+    severity: medium
+    suggested_owner: dev
+    refs: ['app/routes/api.agent-test.tsx:19']
+    
+  - issue: 'Agent communication using placeholder Gemini model instead of deployed endpoint'
+    severity: low
+    suggested_owner: dev
+    refs: ['app/lib/vertex-ai.server.ts:148']
+
+waiver:
+  active: false
+
+quality_score: 70  # 100 - (0*FAILs) - (3*10 CONCERNS)
+expires: '2025-01-19T22:00:00Z'
+
+evidence:
+  tests_reviewed: 21
+  risks_identified: 5
+  trace:
+    ac_covered: [1, 2, 3, 4, 5, 6, 7]
+    ac_gaps: []
+
+nfr_validation:
+  security:
+    status: CONCERNS
+    notes: 'Service account key management needs hardening; no key rotation strategy'
+  performance:
+    status: PASS
+    notes: 'Singleton pattern efficient; rate limiting implemented'
+  reliability:
+    status: CONCERNS
+    notes: 'No retry logic or circuit breaker patterns; in-memory state loss on restart'
+  maintainability:
+    status: PASS
+    notes: 'Clean code structure, good separation of concerns, comprehensive documentation'
+
+recommendations:
+  immediate:
+    - action: 'Implement secure secret management using Google Secret Manager or Vercel encrypted env'
+      refs: ['.env.example', 'vertex-ai.server.ts']
+    - action: 'Replace in-memory rate limiting with Redis/Vercel KV'
+      refs: ['api.agent-test.tsx']
+      
+  future:
+    - action: 'Add circuit breaker pattern for Vertex AI calls'
+      refs: ['vertex-ai.server.ts']
+    - action: 'Implement exponential backoff retry logic'
+      refs: ['vertex-ai.server.ts']
+    - action: 'Add integration tests for Node.js to Python agent flow'
+      refs: ['tests/']
+    - action: 'Implement monitoring and alerting for API quota'
+      refs: ['api.agent-test.tsx']

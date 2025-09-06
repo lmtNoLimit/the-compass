@@ -50,3 +50,28 @@ Thumbs.db
 # Prisma
 apps/web/prisma/*.db
 apps/web/prisma/*.db-journal
+
+# Google Cloud Service Account Keys
+*-key.json
+service-account-*.json
+gcp-*.json
+google-*.json
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+ENV/
+.venv
+pip-log.txt
+pip-delete-this-directory.txt
+.pytest_cache/
+.coverage
+htmlcov/
+*.egg-info/
+dist/
+.python-version

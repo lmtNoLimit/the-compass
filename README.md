@@ -8,6 +8,7 @@ A modern web application built with React Router v7 (Remix), TypeScript, and Tai
 - **UI Components**: Radix UI v1.1+ 
 - **Authentication**: Clerk v4.0+
 - **Database**: PostgreSQL (Neon) with Prisma ORM
+- **AI Framework**: Google Vertex AI with Python ADK
 - **Testing**: Vitest 1.0+ with Testing Library
 - **Build Tool**: Vite 5.0+
 - **Deployment**: Vercel
@@ -29,6 +30,11 @@ persona-compass/
 │   ├── types/              # TypeScript interfaces
 │   ├── root.tsx           # Root layout component
 │   └── app.css            # Global styles
+├── agents/                 # Python AI agents (ADK)
+│   ├── config/             # Agent configurations
+│   ├── utils/              # Shared utilities
+│   ├── tests/              # Python agent tests
+│   └── requirements.txt    # Python dependencies
 ├── prisma/                 # Database schema
 ├── public/                 # Static assets
 ├── tests/                  # Test files
@@ -45,8 +51,10 @@ persona-compass/
 
 - Node.js 20+
 - npm 9+
+- Python 3.11+
 - PostgreSQL (local or Neon account)
 - Clerk account for authentication
+- Google Cloud account with billing enabled (free tier)
 
 ### Installation
 
@@ -67,6 +75,7 @@ cp .env.example .env
 Update the `.env` file with your actual values:
 - Clerk keys from your Clerk dashboard
 - Database URL from Neon or local PostgreSQL
+- Google Cloud project ID and service account credentials
 - Other environment-specific values
 
 3. Set up the database:
@@ -100,6 +109,13 @@ Your application will be available at `http://localhost:5173`.
 - `npm run format` - Format code with Prettier
 - `npm run typecheck` - Run TypeScript checks
 
+#### Python Agent Commands
+
+- `cd agents && python -m pytest` - Run Python tests
+- `cd agents && python -m test_agent --local` - Test agent locally
+- `cd agents && black .` - Format Python code
+- `cd agents && mypy .` - Type check Python code
+
 #### Database Commands
 
 - `npm run db:generate` - Generate Prisma client
@@ -114,6 +130,79 @@ Your application will be available at `http://localhost:5173`.
 - `npm run test:ui` - Open Vitest UI
 
 ## External Service Setup
+
+### Google Cloud Setup
+
+#### 1. Create Google Cloud Project
+
+1. Go to [Google Cloud Console](https://console.cloud.google.com)
+2. Create a new project or select existing one
+3. Enable billing (free tier available with $300 credits)
+4. Note your Project ID for the `.env` file
+
+#### 2. Enable Vertex AI APIs
+
+1. In Cloud Console, go to "APIs & Services" → "Enable APIs"
+2. Search and enable:
+   - Vertex AI API
+   - Cloud Resource Manager API
+   - Identity and Access Management (IAM) API
+
+#### 3. Create Service Account
+
+1. Go to "IAM & Admin" → "Service Accounts"
+2. Create new service account named "persona-compass-ai"
+3. Grant roles:
+   - Vertex AI User
+   - Service Account Token Creator
+4. Create and download JSON key
+5. Save key securely and add path to `.env`:
+   ```bash
+   GOOGLE_APPLICATION_CREDENTIALS=/path/to/service-account-key.json
+   ```
+   Or for production, base64 encode and use:
+   ```bash
+   GOOGLE_CLOUD_KEY_JSON={base64-encoded-json}
+   ```
+
+#### 4. Set Environment Variables
+
+```bash
+# Google Cloud Configuration
+GOOGLE_CLOUD_PROJECT_ID=your-project-id
+GOOGLE_CLOUD_REGION=us-central1  # or your preferred region
+GOOGLE_APPLICATION_CREDENTIALS=/path/to/service-account-key.json
+```
+
+### Python ADK Development
+
+#### 1. Set up Python Environment
+
+```bash
+cd agents
+python3.11 -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+pip install -r requirements.txt
+```
+
+#### 2. Test Agent Locally
+
+```bash
+python -m agents.test_agent --local
+```
+
+#### 3. Deploy Agent to Vertex AI
+
+```bash
+# Build agent package
+python -m adk build agents/test_agent.py
+
+# Deploy to Vertex AI
+python -m adk deploy --project=$GOOGLE_CLOUD_PROJECT_ID --region=$GOOGLE_CLOUD_REGION
+
+# Verify deployment
+python -m adk status --agent-id=test_agent
+```
 
 ### Clerk Authentication
 
@@ -154,17 +243,27 @@ Tests are located in `tests/` and use:
 ## Code Quality
 
 The project uses:
-- **ESLint** for code linting
-- **Prettier** for code formatting
+- **ESLint** for JavaScript/TypeScript linting
+- **Prettier** for JavaScript/TypeScript formatting
+- **Black** for Python formatting
+- **mypy** for Python type checking
+- **pylint** for Python linting
 - **TypeScript** for type checking
 - **Husky** (to be added) for git hooks
 
 Run quality checks:
 
 ```bash
+# JavaScript/TypeScript
 npm run lint          # Check for linting errors
 npm run format        # Format code
 npm run typecheck     # Check TypeScript types
+
+# Python
+cd agents
+python -m black .     # Format Python code
+python -m mypy .      # Check Python types
+python -m pylint agents  # Lint Python code
 ```
 
 ## Contributing
