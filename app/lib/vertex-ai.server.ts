@@ -1,11 +1,11 @@
 /**
  * Vertex AI Server Configuration Module
- * 
+ *
  * This module provides server-side configuration and utilities for
  * communicating with deployed AI agents on Google Vertex AI.
  */
 
-import { VertexAI, GenerativeModel } from '@google-cloud/vertexai';
+import { VertexAI } from '@google-cloud/vertexai';
 
 // Define types for agent communication
 export interface AgentRequest {
@@ -35,7 +35,7 @@ export interface VertexAIConfig {
  * VertexAIService class for managing connections to deployed agents
  */
 export class VertexAIService {
-  private client: VertexAI;
+  private client: VertexAI | undefined;
   private projectId: string;
   private location: string;
   private initialized: boolean = false;
@@ -77,7 +77,9 @@ export class VertexAIService {
       this.initialized = true;
     } catch (error) {
       console.error('Failed to initialize Vertex AI client:', error);
-      throw new Error(`Vertex AI initialization failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      throw new Error(
+        `Vertex AI initialization failed: ${error instanceof Error ? error.message : 'Unknown error'}`
+      );
     }
   }
 
@@ -94,11 +96,23 @@ export class VertexAIService {
 
     try {
       // Try to get a simple model to test connectivity
+      if (!this.client) {
+        throw new Error('Client not initialized');
+      }
       const model = this.client.getGenerativeModel({ model: 'gemini-1.5-flash' });
-      
+
       // Send a simple test prompt
       const result = await model.generateContent({
-        contents: [{ role: 'user', parts: [{ text: 'Hello, this is a connection test. Please respond with "Connection successful".' }] }],
+        contents: [
+          {
+            role: 'user',
+            parts: [
+              {
+                text: 'Hello, this is a connection test. Please respond with "Connection successful".',
+              },
+            ],
+          },
+        ],
       });
 
       const response = result.response.candidates?.[0]?.content?.parts?.[0]?.text;
@@ -145,6 +159,9 @@ export class VertexAIService {
     try {
       // For now, we'll use a generative model as a placeholder
       // In production, this would call the actual deployed agent endpoint
+      if (!this.client) {
+        throw new Error('Client not initialized');
+      }
       const model = this.client.getGenerativeModel({ model: 'gemini-1.5-flash' });
 
       const prompt = `Acting as a test agent, please respond to this prompt: ${request.prompt}`;
@@ -152,7 +169,8 @@ export class VertexAIService {
         contents: [{ role: 'user', parts: [{ text: prompt }] }],
       });
 
-      const responseText = result.response.candidates?.[0]?.content?.parts?.[0]?.text || 'No response generated';
+      const responseText =
+        result.response.candidates?.[0]?.content?.parts?.[0]?.text || 'No response generated';
 
       return {
         agent: request.agentName || 'test-agent',

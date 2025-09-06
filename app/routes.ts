@@ -8,6 +8,7 @@ export default [
 
   // API routes
   route('api/health', 'routes/api.health.tsx'),
+  route('api/agent-test', 'routes/api.agent-test.tsx'),
   route('api/clerk-webhook', 'routes/api.clerk-webhook.tsx'),
 
   // Protected routes
