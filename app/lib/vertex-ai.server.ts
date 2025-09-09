@@ -151,21 +151,29 @@ export class VertexAIService {
   }
 
   /**
-   * Streams a query to the deployed Reasoning Engine.
-   * Uses the proper Vertex AI Reasoning Engines API format with async_stream_query.
+   * Queries the deployed Reasoning Engine through the session.
+   * Since the agent doesn't have direct query methods, we'll use the session approach.
    */
   async streamQuery(request: AgentQueryRequest): Promise<any> {
     if (!this.initialized) {
       throw new Error('Vertex AI service not initialized');
     }
 
-    // Vertex AI Agent Engine query endpoint for ADK agents with SSE streaming
-    const apiUrl = `https://${this.location}-aiplatform.googleapis.com/v1/projects/${this.projectId}/locations/${this.location}/reasoningEngines/${this.agentId}:streamQuery?alt=sse`;
+    // Use the streaming endpoint with ADK format
+    // ADK agents use async_stream_query for streaming responses
+    let apiUrl = '';
+    if (process.env.VERTEX_AGENT_ENDPOINT) {
+      apiUrl = `${process.env.VERTEX_AGENT_ENDPOINT}:streamQuery?alt=sse`;
+    } else {
+      apiUrl = `https://${this.location}-aiplatform.googleapis.com/v1/projects/${this.projectId}/locations/${this.location}/reasoningEngines/${this.agentId}:streamQuery?alt=sse`;
+    }
+    
+    console.log('Using streaming endpoint:', apiUrl);
 
     try {
       const token = await this.getAccessToken();
 
-      // Prepare the request payload matching the exact curl format
+      // Use ADK format with async_stream_query for streaming
       const requestPayload = {
         class_method: 'async_stream_query',
         input: {
@@ -175,7 +183,12 @@ export class VertexAIService {
         },
       };
 
-      console.log(`Querying Agent Engine with payload:`, JSON.stringify(requestPayload, null, 2));
+      console.log(`Querying Agent Engine with:
+  - userId: ${request.userId}
+  - sessionId: ${request.sessionId}
+  - prompt: ${request.prompt}
+      `);
+      console.log(`Full payload:`, JSON.stringify(requestPayload, null, 2));
       console.log(`API URL: ${apiUrl}`);
 
       const response = await fetch(apiUrl, {
@@ -188,13 +201,130 @@ export class VertexAIService {
         body: JSON.stringify(requestPayload),
       });
 
+      console.log('Response status:', response.status);
+      console.log('Response headers:', Object.fromEntries(response.headers.entries()));
+      console.log('Response type:', response.type);
+      console.log('Content-Type:', response.headers.get('content-type'));
+
       if (!response.ok) {
         const errorText = await response.text();
         console.error(`API error (${response.status}):`, errorText);
+
+        // Try to parse error for better debugging
+        try {
+          const errorJson = JSON.parse(errorText);
+          if (errorJson.error) {
+            throw new Error(
+              `API error (${response.status}): ${errorJson.error.message || errorJson.error}`
+            );
+          }
+        } catch {
+          // If not JSON, use raw text
+        }
+
         throw new Error(`API error (${response.status}): ${errorText}`);
       }
 
-      // Handle SSE streaming response using ReadableStream
+      // Check if we're actually getting SSE or JSON response
+      const contentType = response.headers.get('content-type') || '';
+      console.log('Actual Content-Type received:', contentType);
+
+      // If response is JSON instead of SSE, handle it differently
+      if (contentType.includes('application/json')) {
+        console.log('Received JSON response instead of SSE, parsing as JSON...');
+        
+        try {
+          const responseText = await response.text();
+          console.log('Raw response text length:', responseText.length);
+          console.log('First 1500 chars of raw response:', responseText.substring(0, 1500));
+          
+          if (!responseText || responseText.trim() === '') {
+            console.error('Empty response body received');
+            return {
+              response: 'Agent returned an empty response. Please check the agent configuration.',
+              sessionId: request.sessionId,
+            };
+          }
+          
+          // Check if response contains multiple JSON objects (common with streaming)
+          // Try to extract just the first complete JSON object
+          let jsonResponse;
+          
+          // First, try to parse as-is
+          try {
+            jsonResponse = JSON.parse(responseText);
+          } catch (firstError) {
+            console.log('Direct parse failed, checking for multiple JSON objects...');
+            
+            // If direct parse fails, it might be multiple JSON objects
+            // Try to find the first complete JSON object
+            const lines = responseText.split('\n');
+            let parsedSuccessfully = false;
+            
+            for (const line of lines) {
+              if (line.trim()) {
+                try {
+                  jsonResponse = JSON.parse(line);
+                  console.log('Successfully parsed line as JSON');
+                  parsedSuccessfully = true;
+                  break;
+                } catch (lineError) {
+                  // Continue to next line
+                }
+              }
+            }
+            
+            if (!parsedSuccessfully) {
+              // Try to extract up to the first complete JSON object
+              // Look for a pattern that ends a JSON object
+              const match = responseText.match(/^(\{.*?\})\s*$/ms);
+              if (match) {
+                try {
+                  jsonResponse = JSON.parse(match[1]);
+                  console.log('Extracted and parsed first JSON object');
+                } catch (extractError) {
+                  console.error('Failed to parse extracted JSON:', extractError);
+                  throw firstError; // Re-throw original error
+                }
+              } else {
+                throw firstError; // Re-throw original error
+              }
+            }
+          }
+          
+          console.log('Parsed JSON response:', JSON.stringify(jsonResponse, null, 2).substring(0, 500));
+          
+          // Extract response from JSON format
+          let extractedResponse = '';
+          if (typeof jsonResponse === 'string') {
+            extractedResponse = jsonResponse;
+          } else if (jsonResponse.output) {
+            extractedResponse = typeof jsonResponse.output === 'string' 
+              ? jsonResponse.output 
+              : JSON.stringify(jsonResponse.output);
+          } else if (jsonResponse.response) {
+            extractedResponse = typeof jsonResponse.response === 'string'
+              ? jsonResponse.response
+              : JSON.stringify(jsonResponse.response);
+          } else {
+            extractedResponse = JSON.stringify(jsonResponse);
+          }
+          
+          return {
+            response: extractedResponse || 'No response in JSON',
+            sessionId: request.sessionId,
+          };
+        } catch (parseError) {
+          console.error('Failed to parse JSON response:', parseError);
+          // Don't try to read again - body was already consumed
+          return {
+            response: 'Failed to parse agent response. Check server logs for details.',
+            sessionId: request.sessionId,
+          };
+        }
+      }
+
+      // Handle SSE streaming response
       const reader = response.body?.getReader();
       if (!reader) {
         throw new Error('Response body is not readable');
@@ -203,51 +333,218 @@ export class VertexAIService {
       const decoder = new TextDecoder();
       const events: any[] = [];
       let buffer = '';
+      let finalResponse = '';
+      let totalBytesRead = 0;
+      const isDevelopment = process.env.NODE_ENV === 'development';
 
       try {
+        console.log('Starting to read SSE stream...');
+        let chunkCount = 0;
+        
         while (true) {
           const { done, value } = await reader.read();
-          
+
           if (done) {
+            console.log('Stream reading complete. Total chunks:', chunkCount);
+            console.log('Final buffer content:', buffer);
             break;
           }
 
+          chunkCount++;
+          const chunkSize = value ? value.length : 0;
+          totalBytesRead += chunkSize;
+          
           // Decode the chunk and add to buffer
-          buffer += decoder.decode(value, { stream: true });
+          const decodedChunk = decoder.decode(value, { stream: true });
+          buffer += decodedChunk;
           
-          // Split buffer by newlines to process complete SSE events
-          const lines = buffer.split('\n');
-          
-          // Keep the last incomplete line in the buffer
-          buffer = lines.pop() || '';
-          
-          // Process complete lines
-          for (const line of lines) {
-            if (line.startsWith('data: ')) {
-              try {
-                const eventData = JSON.parse(line.substring(6));
-                events.push(eventData);
-                console.log('Received SSE event:', JSON.stringify(eventData, null, 2));
-              } catch (e) {
-                // Check if it's [DONE] or other non-JSON data
-                const dataContent = line.substring(6).trim();
-                if (dataContent !== '[DONE]' && dataContent !== '') {
-                  console.warn('Failed to parse SSE event:', line);
+          console.log(`Chunk ${chunkCount}: ${chunkSize} bytes, Total read: ${totalBytesRead} bytes`);
+          console.log(`Decoded chunk content:`, decodedChunk.substring(0, 500));
+
+          // In development, log raw buffer chunks for debugging
+          if (isDevelopment) {
+            console.log('Current buffer length:', buffer.length);
+            console.log('Buffer contains "data:"?', buffer.includes('data:'));
+            console.log('Buffer contains newlines?', buffer.includes('\n'));
+            console.log('Raw buffer (first 1000 chars):', buffer.substring(0, 1000));
+          }
+
+          // Process SSE events - they are separated by double newlines
+          const eventBlocks = buffer.split('\n\n');
+
+          // Keep the last incomplete block in the buffer
+          buffer = eventBlocks.pop() || '';
+
+          // Process complete event blocks
+          for (const block of eventBlocks) {
+            if (!block.trim()) continue;
+
+            // Each block may contain multiple lines (event, data, etc.)
+            const lines = block.split('\n');
+            let eventData = null;
+
+            for (const line of lines) {
+              if (line.startsWith('data: ')) {
+                const dataStr = line.substring(6).trim();
+
+                // Skip [DONE] marker
+                if (dataStr === '[DONE]') {
+                  continue;
+                }
+
+                try {
+                  eventData = JSON.parse(dataStr);
+                  events.push(eventData);
+
+                  // Log full event structure in development for debugging
+                  if (isDevelopment) {
+                    console.log('Full SSE event structure:', JSON.stringify(eventData, null, 2));
+                  }
+
+                  // Immediately extract text from the event
+                  if (eventData) {
+                    // Direct text response
+                    if (typeof eventData === 'string') {
+                      console.log('Found direct string response');
+                      finalResponse += eventData;
+                    }
+                    // Check if this is the ADK agent response format with content.parts
+                    else if (eventData.content && eventData.content.parts && Array.isArray(eventData.content.parts)) {
+                      console.log('Found ADK content.parts structure');
+                      for (const part of eventData.content.parts) {
+                        if (part.text) {
+                          console.log('Extracted text from part:', part.text.substring(0, 100));
+                          finalResponse += part.text;
+                        }
+                      }
+                    }
+                    // ADK format: Check if the entire eventData is the output
+                    else if (eventData.output !== undefined) {
+                      // Handle when output is directly the response string (ADK common pattern)
+                      if (typeof eventData.output === 'string') {
+                        console.log('Found string in output field');
+                        finalResponse += eventData.output;
+                      }
+                      // Handle when output is a number or boolean (convert to string)
+                      else if (
+                        typeof eventData.output === 'number' ||
+                        typeof eventData.output === 'boolean'
+                      ) {
+                        console.log('Found primitive in output field:', eventData.output);
+                        finalResponse += String(eventData.output);
+                      }
+                      // Handle structured output
+                      else if (typeof eventData.output === 'object' && eventData.output !== null) {
+                        // First check if it's an agent response object
+                        if (eventData.output.agent && eventData.output.response) {
+                          console.log('Found agent response structure');
+                          finalResponse +=
+                            typeof eventData.output.response === 'string'
+                              ? eventData.output.response
+                              : JSON.stringify(eventData.output.response);
+                        }
+                        // Check for text field
+                        else if (eventData.output.text) {
+                          console.log('Found text in output object');
+                          finalResponse += eventData.output.text;
+                        }
+                        // Check for message field
+                        else if (eventData.output.message) {
+                          console.log('Found message in output object');
+                          finalResponse += eventData.output.message;
+                        }
+                        // Check for response field
+                        else if (eventData.output.response) {
+                          console.log('Found response in output object');
+                          finalResponse +=
+                            typeof eventData.output.response === 'string'
+                              ? eventData.output.response
+                              : JSON.stringify(eventData.output.response);
+                        }
+                        // If output is an object but doesn't have expected fields,
+                        // it might be the entire response as an object (like health check response)
+                        else {
+                          const outputStr = JSON.stringify(eventData.output);
+                          if (outputStr !== '{}') {
+                            console.log('Using entire output object as response');
+                            finalResponse += outputStr;
+                          }
+                        }
+                      }
+                    }
+                    // Check for other common fields
+                    else if (eventData.response) {
+                      console.log('Found response field');
+                      finalResponse +=
+                        typeof eventData.response === 'string'
+                          ? eventData.response
+                          : JSON.stringify(eventData.response);
+                    } else if (eventData.text) {
+                      console.log('Found text field');
+                      finalResponse += eventData.text;
+                    } else if (eventData.message) {
+                      console.log('Found message field');
+                      finalResponse += eventData.message;
+                    } else if (eventData.content) {
+                      console.log('Found content field');
+                      if (typeof eventData.content === 'string') {
+                        finalResponse += eventData.content;
+                      } else if (eventData.content.text) {
+                        finalResponse += eventData.content.text;
+                      } else if (eventData.content.message) {
+                        finalResponse += eventData.content.message;
+                      }
+                    }
+                    // If no known fields, log the entire event for debugging
+                    else if (isDevelopment) {
+                      console.log('Unknown event structure, full event:', eventData);
+                    }
+                  }
+
+                  if (isDevelopment) {
+                    console.log(
+                      'Processed SSE event (first 200 chars):',
+                      JSON.stringify(eventData, null, 2).substring(0, 200)
+                    );
+                  }
+                } catch (parseError) {
+                  console.warn('Failed to parse SSE data:', dataStr.substring(0, 100));
+                  if (isDevelopment) {
+                    console.error('Parse error:', parseError);
+                  }
                 }
               }
             }
           }
         }
-        
+
         // Process any remaining data in buffer
-        if (buffer.trim() && buffer.startsWith('data: ')) {
-          try {
-            const eventData = JSON.parse(buffer.substring(6));
-            events.push(eventData);
-          } catch (e) {
-            const dataContent = buffer.substring(6).trim();
-            if (dataContent !== '[DONE]' && dataContent !== '') {
-              console.warn('Failed to parse final SSE event:', buffer);
+        if (buffer.trim()) {
+          const lines = buffer.split('\n');
+          for (const line of lines) {
+            if (line.startsWith('data: ')) {
+              const dataStr = line.substring(6).trim();
+              if (dataStr !== '[DONE]' && dataStr !== '') {
+                try {
+                  const eventData = JSON.parse(dataStr);
+                  events.push(eventData);
+
+                  // Extract text from final event
+                  if (typeof eventData === 'string') {
+                    finalResponse += eventData;
+                  } else if (eventData.output) {
+                    if (typeof eventData.output === 'string') {
+                      finalResponse += eventData.output;
+                    } else if (eventData.output.text) {
+                      finalResponse += eventData.output.text;
+                    } else if (eventData.output.message) {
+                      finalResponse += eventData.output.message;
+                    }
+                  }
+                } catch {
+                  console.warn('Failed to parse final SSE data');
+                }
+              }
             }
           }
         }
@@ -256,69 +553,62 @@ export class VertexAIService {
       }
 
       console.log(`Parsed ${events.length} SSE events`);
+      if (events.length > 0) {
+        console.log('All parsed events:', JSON.stringify(events, null, 2));
+      }
+      console.log(`Final response length: ${finalResponse.length}`);
+      console.log(`Final response preview: ${finalResponse.substring(0, 500)}`);
 
-      // Extract the final response from events
-      let finalResponse = '';
-      let fullOutput = {};
+      // If we still don't have a response, try to extract from events differently
+      if (!finalResponse && events.length > 0) {
+        // Try to find any text content in the events
+        for (const event of events) {
+          if (event && typeof event === 'object') {
+            // Deep search for text content
+            const findText = (obj: any): string => {
+              if (typeof obj === 'string') return obj;
+              if (typeof obj === 'object' && obj !== null) {
+                for (const key of ['text', 'message', 'response', 'content', 'output']) {
+                  if (obj[key]) {
+                    const result = findText(obj[key]);
+                    if (result) return result;
+                  }
+                }
+              }
+              return '';
+            };
 
-      // Process all events to build the complete response
-      for (const event of events) {
-        if (event.output) {
-          if (typeof event.output === 'string') {
-            finalResponse += event.output;
-          } else if (event.output.text) {
-            finalResponse += event.output.text;
-          } else if (event.output.message) {
-            finalResponse += event.output.message;
-          } else if (event.output.response) {
-            finalResponse += typeof event.output.response === 'string' 
-              ? event.output.response 
-              : JSON.stringify(event.output.response);
-          } else {
-            // Store structured output
-            fullOutput = { ...fullOutput, ...event.output };
-          }
-        } else if (event.response) {
-          finalResponse +=
-            typeof event.response === 'string' ? event.response : JSON.stringify(event.response);
-        } else if (event.text) {
-          finalResponse += event.text;
-        } else if (event.message) {
-          finalResponse += event.message;
-        } else if (event.content) {
-          // Handle content field (common in SSE responses)
-          if (typeof event.content === 'string') {
-            finalResponse += event.content;
-          } else if (event.content.text) {
-            finalResponse += event.content.text;
-          } else if (event.content.message) {
-            finalResponse += event.content.message;
+            const text = findText(event);
+            if (text) {
+              finalResponse += text;
+            }
           }
         }
       }
 
-      // If no text response was found, use the structured output
-      if (!finalResponse && Object.keys(fullOutput).length > 0) {
-        finalResponse = JSON.stringify(fullOutput, null, 2);
-      }
-
-      // If still no response, return the raw events for debugging
-      if (!finalResponse && events.length > 0) {
-        console.log('No text found in events, returning last event');
-        finalResponse = JSON.stringify(events[events.length - 1], null, 2);
+      // Final fallback - return a meaningful message
+      if (!finalResponse) {
+        console.warn('No text response extracted from SSE events');
+        if (events.length > 0) {
+          console.log('Last event structure:', JSON.stringify(events[events.length - 1], null, 2));
+        }
+        finalResponse =
+          'The agent processed your request but did not return a text response. Please check the agent configuration.';
       }
 
       console.log(`Successfully queried Agent Engine for session ${request.sessionId}`);
       console.log(`Final response length: ${finalResponse.length} characters`);
 
       return {
-        response: finalResponse || 'No response generated',
-        events: events, // Include all events for debugging
+        response: finalResponse,
+        events: events.length > 0 ? events : undefined, // Only include events if present
         sessionId: request.sessionId,
       };
     } catch (error) {
       console.error('Failed to query Agent Engine:', error);
-      throw new Error(`Could not query agent session: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      throw new Error(
+        `Could not query agent session: ${error instanceof Error ? error.message : 'Unknown error'}`
+      );
     }
   }
 

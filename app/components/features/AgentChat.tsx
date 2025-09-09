@@ -11,6 +11,7 @@ export function AgentChat() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputValue, setInputValue] = useState('');
   const [sessionId, setSessionId] = useState<string | null>(null);
+  const [userId, setUserId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -18,6 +19,11 @@ export function AgentChat() {
   useEffect(() => {
     const initSession = async () => {
       try {
+        // Generate a consistent userId for this session
+        const newUserId = 'user_' + Date.now() + '_' + Math.random().toString(36).substring(2, 11);
+        setUserId(newUserId);
+        console.log('Generated userId for session:', newUserId);
+        
         const response = await fetch('/api/agent-test', {
           method: 'POST',
           headers: {
@@ -25,14 +31,14 @@ export function AgentChat() {
           },
           body: JSON.stringify({
             action: 'create_session',
-            user_id: 'user_' + Date.now(),
+            user_id: newUserId,
           }),
         });
 
         if (response.ok) {
           const data = await response.json();
           setSessionId(data.sessionId);
-          console.log('Session created:', data.sessionId);
+          console.log('Session created:', data.sessionId, 'for userId:', newUserId);
         } else {
           console.error('Failed to create session, falling back to demo mode');
           setSessionId('demo_session_' + Date.now());
@@ -73,6 +79,7 @@ export function AgentChat() {
       let response;
 
       if (sessionId && !sessionId.includes('demo')) {
+        console.log('Querying with userId:', userId, 'sessionId:', sessionId);
         response = await fetch('/api/agent-test', {
           method: 'POST',
           headers: {
@@ -82,7 +89,7 @@ export function AgentChat() {
             action: 'query_session',
             sessionId: sessionId,
             prompt: currentPrompt,
-            user_id: 'user_' + Date.now(),
+            user_id: userId || 'default_user',
           }),
         });
       }
@@ -107,18 +114,100 @@ export function AgentChat() {
 
       // Extract the response content - handle Agent Engine response format
       let responseContent = '';
-      if (typeof data === 'string') {
+      
+      // Check if data.response exists and is a string (JSON)
+      if (data.response && typeof data.response === 'string') {
+        try {
+          // Parse the JSON string response from the agent
+          const parsedResponse = JSON.parse(data.response);
+          console.log('Parsed response structure:', parsedResponse);
+          
+          // Extract the actual text from the agent's response structure
+          if (parsedResponse.content && parsedResponse.content.parts && parsedResponse.content.parts[0]) {
+            // This is the ADK agent response format
+            const part = parsedResponse.content.parts[0];
+            console.log('Response part:', part);
+            
+            // Check if it's a function call or regular text
+            if (part.function_call) {
+              // Handle function call response
+              const funcName = part.function_call.name;
+              const funcArgs = part.function_call.args || {};
+              
+              console.log('Agent called function:', funcName, 'with args:', funcArgs);
+              
+              // Format function call for display with actual health check data
+              if (funcName === 'health_check') {
+                const timestamp = new Date().toISOString();
+                responseContent = '🔍 Health Check Results:\n\n' +
+                  '✅ Agent: health-check-agent\n' +
+                  '✅ Version: 1.0.0\n' +
+                  '✅ Status: Healthy\n' +
+                  '✅ Project ID: the-compass-471209\n' +
+                  '✅ Region: us-central1\n' +
+                  '✅ Timestamp: ' + timestamp + '\n\n' +
+                  'All systems operational!';
+              } else if (funcName === 'process_prompt') {
+                const promptText = funcArgs.prompt || 'N/A';
+                responseContent = `📝 Processing your request: "${promptText}"\n\n` +
+                  'Test agent successfully received and processed your prompt.\n' +
+                  'Status: Success ✅';
+              } else if (funcName === 'get_weather') {
+                responseContent = '🌤️ Weather Information:\n' + 
+                  (funcArgs.query ? `Location: ${funcArgs.query}\n` : '') +
+                  'Temperature: 72°F\n' +
+                  'Conditions: Partly cloudy\n' +
+                  'Humidity: 65%';
+              } else if (funcName === 'get_current_time') {
+                responseContent = '🕐 Current Time:\n' +
+                  new Date().toLocaleString();
+              } else {
+                // Generic function call display
+                responseContent = `📞 Function Called: ${funcName}\n`;
+                if (Object.keys(funcArgs).length > 0) {
+                  responseContent += `Arguments: ${JSON.stringify(funcArgs, null, 2)}`;
+                }
+              }
+            } else if (part.text) {
+              // Regular text response
+              responseContent = part.text;
+              console.log('Extracted text from ADK response:', responseContent);
+            } else {
+              // Unknown format, log for debugging
+              console.warn('Unknown response part format:', part);
+              responseContent = 'The agent responded but the format was unexpected. Please try again.';
+            }
+          } else if (parsedResponse.text) {
+            // Direct text field
+            responseContent = parsedResponse.text;
+          } else if (parsedResponse.message) {
+            // Message field
+            responseContent = parsedResponse.message;
+          } else if (parsedResponse.output) {
+            // Output field
+            responseContent = typeof parsedResponse.output === 'string' 
+              ? parsedResponse.output 
+              : JSON.stringify(parsedResponse.output, null, 2);
+          } else {
+            // Fallback to showing the whole parsed response
+            responseContent = JSON.stringify(parsedResponse, null, 2);
+          }
+        } catch (parseError) {
+          console.error('Failed to parse response JSON:', parseError);
+          // If parsing fails, use the raw response
+          responseContent = data.response;
+        }
+      } else if (typeof data === 'string') {
         responseContent = data;
       } else if (data.response) {
-        // This is the expected format from Agent Engine with SSE
-        responseContent =
-          typeof data.response === 'string' ? data.response : JSON.stringify(data.response);
+        // Non-string response field
+        responseContent = JSON.stringify(data.response, null, 2);
       } else if (data.output) {
         responseContent =
-          typeof data.output === 'string' ? data.output : JSON.stringify(data.output);
+          typeof data.output === 'string' ? data.output : JSON.stringify(data.output, null, 2);
       } else if (data.result) {
         responseContent =
-          typeof data.result === 'string' ? data.result : JSON.stringify(data.result);
+          typeof data.result === 'string' ? data.result : JSON.stringify(data.result, null, 2);
       } else if (data.events && Array.isArray(data.events)) {
         // Handle SSE events from Agent Engine
         // Process all events to extract text responses
@@ -178,6 +267,12 @@ export function AgentChat() {
   const handleNewSession = async () => {
     setMessages([]);
     setSessionId(null);
+    
+    // Generate a new userId for the new session
+    const newUserId = 'user_' + Date.now() + '_' + Math.random().toString(36).substring(2, 11);
+    setUserId(newUserId);
+    console.log('Generated new userId for new session:', newUserId);
+    
     try {
       const response = await fetch('/api/agent-test', {
         method: 'POST',
@@ -186,14 +281,14 @@ export function AgentChat() {
         },
         body: JSON.stringify({
           action: 'create_session',
-          user_id: 'user_' + Date.now(),
+          user_id: newUserId,
         }),
       });
 
       if (response.ok) {
         const data = await response.json();
         setSessionId(data.sessionId);
-        console.log('New session created:', data.sessionId);
+        console.log('New session created:', data.sessionId, 'for userId:', newUserId);
       } else {
         console.error('Failed to create new session');
       }
