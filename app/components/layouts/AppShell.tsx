@@ -99,7 +99,9 @@ export function AppShell({ children }: AppShellProps) {
                       Mobile navigation menu with links to different sections of the application
                     </Dialog.Description>
                     <div className="flex items-center justify-between p-4 border-b">
-                      <h2 className="text-lg font-bold text-gray-900 dark:text-white">The Compass</h2>
+                      <h2 className="text-lg font-bold text-gray-900 dark:text-white">
+                        The Compass
+                      </h2>
                       <Dialog.Close asChild>
                         <button
                           className="p-2 rounded-md text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors duration-200"
@@ -118,7 +120,9 @@ export function AppShell({ children }: AppShellProps) {
 
               {/* Logo */}
               <NavLink to="/" className="flex items-center ml-4 sm:ml-0">
-                <h1 className="text-xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 dark:from-blue-400 dark:to-indigo-400 bg-clip-text text-transparent">The Compass</h1>
+                <h1 className="text-xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 dark:from-blue-400 dark:to-indigo-400 bg-clip-text text-transparent">
+                  The Compass
+                </h1>
               </NavLink>
 
               {/* Desktop Navigation */}
@@ -134,7 +138,9 @@ export function AppShell({ children }: AppShellProps) {
               {/* User email display (desktop only) */}
               <SignedIn>
                 {isLoaded && userEmail && (
-                  <span className="hidden lg:block text-sm text-gray-600 dark:text-gray-400">{userEmail}</span>
+                  <span className="hidden lg:block text-sm text-gray-600 dark:text-gray-400">
+                    {userEmail}
+                  </span>
                 )}
                 <UserButton
                   afterSignOutUrl="/"

@@ -15,7 +15,9 @@ export default function Index() {
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-blue-50 dark:from-gray-900 dark:via-gray-950 dark:to-indigo-950">
       <div className="container mx-auto px-4 py-16">
         <div className="text-center max-w-3xl mx-auto">
-          <h1 className="text-5xl font-bold mb-6 bg-gradient-to-r from-blue-600 to-indigo-600 dark:from-blue-400 dark:to-indigo-400 bg-clip-text text-transparent">Welcome to The Compass</h1>
+          <h1 className="text-5xl font-bold mb-6 bg-gradient-to-r from-blue-600 to-indigo-600 dark:from-blue-400 dark:to-indigo-400 bg-clip-text text-transparent">
+            Welcome to The Compass
+          </h1>
           <p className="text-xl text-gray-600 dark:text-gray-300 mb-8">
             AI-Powered Feature Brief Validation Platform for Product Managers
           </p>
@@ -73,7 +75,9 @@ export default function Index() {
                 />
               </svg>
             </div>
-            <h3 className="text-lg font-semibold mb-2 text-gray-900 dark:text-white">Create Feature Briefs</h3>
+            <h3 className="text-lg font-semibold mb-2 text-gray-900 dark:text-white">
+              Create Feature Briefs
+            </h3>
             <p className="text-gray-600 dark:text-gray-300">
               Document your product ideas with structured briefs that capture all essential details
             </p>
@@ -95,7 +99,9 @@ export default function Index() {
                 />
               </svg>
             </div>
-            <h3 className="text-lg font-semibold mb-2 text-gray-900 dark:text-white">AI-Driven Validation</h3>
+            <h3 className="text-lg font-semibold mb-2 text-gray-900 dark:text-white">
+              AI-Driven Validation
+            </h3>
             <p className="text-gray-600 dark:text-gray-300">
               Get instant feedback from AI personas representing your target users
             </p>
@@ -117,7 +123,9 @@ export default function Index() {
                 />
               </svg>
             </div>
-            <h3 className="text-lg font-semibold mb-2 text-gray-900 dark:text-white">Actionable Insights</h3>
+            <h3 className="text-lg font-semibold mb-2 text-gray-900 dark:text-white">
+              Actionable Insights
+            </h3>
             <p className="text-gray-600 dark:text-gray-300">
               Make informed decisions with detailed validation reports and recommendations
             </p>

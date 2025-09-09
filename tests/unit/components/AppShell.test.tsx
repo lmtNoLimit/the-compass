@@ -38,7 +38,7 @@ vi.mock('@clerk/react-router', () => ({
   },
   SignInButton: ({ children }: { children: React.ReactNode }) => <>{children}</>,
   useUser: () => currentUserState,
-}))
+}));
 
 // Mock React Router hooks
 vi.mock('react-router', async () => {
@@ -47,7 +47,10 @@ vi.mock('react-router', async () => {
     ...actual,
     useNavigation: () => currentNavigationState,
     NavLink: ({ to, children, className }: any) => (
-      <a href={to} className={typeof className === 'function' ? className({ isActive: false }) : className}>
+      <a
+        href={to}
+        className={typeof className === 'function' ? className({ isActive: false }) : className}
+      >
         {children}
       </a>
     ),
@@ -77,7 +80,7 @@ describe('AppShell Component', () => {
         mutations: { retry: false },
       },
     });
-    
+
     // Reset to default mock values
     currentUserState = { ...defaultUserState };
     currentNavigationState = { ...defaultNavigationState };
@@ -129,7 +132,7 @@ describe('AppShell Component', () => {
       renderAppShell();
       const dashboardLink = screen.getByText('Dashboard').closest('a');
       const briefsLink = screen.getByText('Briefs').closest('a');
-      
+
       expect(dashboardLink).toHaveAttribute('href', '/dashboard');
       expect(briefsLink).toHaveAttribute('href', '/briefs');
     });
@@ -146,7 +149,7 @@ describe('AppShell Component', () => {
       window.matchMedia = vi.fn().mockImplementation((query) => {
         return matchMediaMock(query.includes('640px'));
       });
-      
+
       renderAppShell();
       const hamburger = screen.getByLabelText('Open menu');
       expect(hamburger).toBeInTheDocument();
@@ -156,7 +159,7 @@ describe('AppShell Component', () => {
       window.matchMedia = vi.fn().mockImplementation((query) => {
         return matchMediaMock(query.includes('640px'));
       });
-      
+
       renderAppShell();
       const nav = screen.getByText('Dashboard').closest('nav');
       expect(nav?.className).toContain('sm:flex');
@@ -164,12 +167,12 @@ describe('AppShell Component', () => {
 
     it('opens mobile menu when hamburger is clicked', () => {
       window.matchMedia = vi.fn().mockImplementation(() => matchMediaMock(false));
-      
+
       renderAppShell();
       const hamburger = screen.getByLabelText('Open menu');
-      
+
       fireEvent.click(hamburger);
-      
+
       // Check if close button appears (indicates menu is open)
       expect(screen.getByLabelText('Close menu')).toBeInTheDocument();
     });
@@ -225,9 +228,9 @@ describe('AppShell Component', () => {
         isSignedIn: false,
         user: null,
       };
-      
+
       renderAppShell();
-      
+
       expect(screen.queryByText('test@example.com')).not.toBeInTheDocument();
     });
   });
@@ -241,14 +244,14 @@ describe('AppShell Component', () => {
     it('maintains focus management for mobile menu', () => {
       renderAppShell();
       const hamburger = screen.getByLabelText('Open menu');
-      
+
       fireEvent.click(hamburger);
-      
+
       const closeButton = screen.getByLabelText('Close menu');
       expect(closeButton).toBeInTheDocument();
-      
+
       fireEvent.click(closeButton);
-      
+
       expect(screen.queryByLabelText('Close menu')).not.toBeInTheDocument();
     });
   });

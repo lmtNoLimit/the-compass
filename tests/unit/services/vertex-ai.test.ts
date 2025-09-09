@@ -20,11 +20,11 @@ describe('VertexAIService', () => {
   beforeEach(() => {
     // Save original environment
     originalEnv = { ...process.env };
-    
+
     // Set test environment variables
     process.env.GOOGLE_CLOUD_PROJECT_ID = 'test-project-id';
     process.env.GOOGLE_CLOUD_REGION = 'us-central1';
-    
+
     vi.clearAllMocks();
   });
 
@@ -37,10 +37,10 @@ describe('VertexAIService', () => {
   describe('Initialization', () => {
     it('initializes with environment variables', () => {
       const service = new VertexAIService();
-      
+
       expect(service).toBeDefined();
       expect(service.isInitialized()).toBe(true);
-      
+
       const config = service.getConfig();
       expect(config.projectId).toBe('test-project-id');
       expect(config.location).toBe('us-central1');
@@ -51,7 +51,7 @@ describe('VertexAIService', () => {
         projectId: 'custom-project',
         location: 'europe-west1',
       });
-      
+
       const config = service.getConfig();
       expect(config.projectId).toBe('custom-project');
       expect(config.location).toBe('europe-west1');
@@ -59,16 +59,16 @@ describe('VertexAIService', () => {
 
     it('throws error when project ID is missing', () => {
       delete process.env.GOOGLE_CLOUD_PROJECT_ID;
-      
+
       expect(() => new VertexAIService()).toThrow('GOOGLE_CLOUD_PROJECT_ID is required');
     });
 
     it('uses default region when not specified', () => {
       delete process.env.GOOGLE_CLOUD_REGION;
-      
+
       const service = new VertexAIService();
       const config = service.getConfig();
-      
+
       expect(config.location).toBe('us-central1');
     });
 
@@ -78,9 +78,9 @@ describe('VertexAIService', () => {
         project_id: 'test-project',
         private_key: 'fake-key',
       };
-      
+
       process.env.GOOGLE_CLOUD_KEY_JSON = JSON.stringify(mockCredentials);
-      
+
       const service = new VertexAIService();
       expect(service.isInitialized()).toBe(true);
     });
@@ -90,13 +90,17 @@ describe('VertexAIService', () => {
     it('returns success when connection is established', async () => {
       const mockGenerateContent = vi.fn().mockResolvedValue({
         response: {
-          candidates: [{
-            content: {
-              parts: [{
-                text: 'Connection successful',
-              }],
+          candidates: [
+            {
+              content: {
+                parts: [
+                  {
+                    text: 'Connection successful',
+                  },
+                ],
+              },
             },
-          }],
+          ],
         },
       });
 
@@ -109,7 +113,7 @@ describe('VertexAIService', () => {
 
       const service = new VertexAIService();
       const result = await service.testConnection();
-      
+
       expect(result.success).toBe(true);
       expect(result.message).toBe('Vertex AI connection successful');
       expect(result.details?.projectId).toBe('test-project-id');
@@ -130,7 +134,7 @@ describe('VertexAIService', () => {
 
       const service = new VertexAIService();
       const result = await service.testConnection();
-      
+
       expect(result.success).toBe(false);
       expect(result.message).toContain('Connection test failed');
       expect(result.message).toContain('Network error');
@@ -140,9 +144,9 @@ describe('VertexAIService', () => {
       const service = new VertexAIService();
       // Manually set initialized to false for testing
       (service as any).initialized = false;
-      
+
       const result = await service.testConnection();
-      
+
       expect(result.success).toBe(false);
       expect(result.message).toBe('Vertex AI client not initialized');
     });
@@ -152,13 +156,17 @@ describe('VertexAIService', () => {
     it('successfully calls agent and returns response', async () => {
       const mockGenerateContent = vi.fn().mockResolvedValue({
         response: {
-          candidates: [{
-            content: {
-              parts: [{
-                text: 'Agent response to test prompt',
-              }],
+          candidates: [
+            {
+              content: {
+                parts: [
+                  {
+                    text: 'Agent response to test prompt',
+                  },
+                ],
+              },
             },
-          }],
+          ],
         },
       });
 
@@ -175,7 +183,7 @@ describe('VertexAIService', () => {
         context: { userId: 'test-user' },
         agentName: 'test-agent',
       });
-      
+
       expect(response.status).toBe('success');
       expect(response.agent).toBe('test-agent');
       expect(response.version).toBe('1.0.0');
@@ -198,7 +206,7 @@ describe('VertexAIService', () => {
       const response = await service.callAgent({
         prompt: 'Test prompt',
       });
-      
+
       expect(response.status).toBe('error');
       expect(response.error).toContain('Agent call failed');
       expect(response.error).toContain('Agent processing failed');
@@ -209,11 +217,11 @@ describe('VertexAIService', () => {
       const service = new VertexAIService();
       // Manually set initialized to false for testing
       (service as any).initialized = false;
-      
+
       const response = await service.callAgent({
         prompt: 'Test prompt',
       });
-      
+
       expect(response.status).toBe('error');
       expect(response.error).toBe('Vertex AI client not initialized');
     });
@@ -237,7 +245,7 @@ describe('VertexAIService', () => {
         prompt: 'Test prompt',
         agentName: 'test-agent',
       });
-      
+
       expect(response.status).toBe('success');
       expect(response.response).toBe('No response generated');
     });
@@ -248,10 +256,10 @@ describe('VertexAIService', () => {
       // Import fresh module to test singleton
       vi.resetModules();
       const module = await import('~/lib/vertex-ai.server');
-      
+
       const instance1 = module.getVertexAIService();
       const instance2 = module.getVertexAIService();
-      
+
       expect(instance1).toBe(instance2);
     });
   });

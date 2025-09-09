@@ -3,7 +3,6 @@ import { type RouteConfig, index, route, layout } from '@react-router/dev/routes
 export default [
   // Public routes
   index('routes/_index.tsx'),
-  route('agent', 'routes/agent.tsx'),
   route('sign-in', 'routes/sign-in.tsx'),
   route('sign-up', 'routes/sign-up.tsx'),
 
@@ -16,6 +15,10 @@ export default [
   layout('components/features/ProtectedRoute.tsx', [
     route('briefs', 'routes/briefs._index.tsx'),
     route('briefs/new', 'routes/briefs.new.tsx'),
+    route('dashboard', 'routes/dashboard.tsx'),
+    route('history', 'routes/history.tsx'),
+    route('settings', 'routes/settings.tsx'),
+    route('agent', 'routes/agent.tsx'),
     route('validations', 'routes/validations._index.tsx'),
   ]),
 ] satisfies RouteConfig;

@@ -10,16 +10,23 @@ import {
   useNavigation,
 } from 'react-router';
 import type { Route } from './+types/root';
-import { ClerkProvider, SignedIn, SignedOut, UserButton, SignInButton, useAuth } from '@clerk/react-router';
+import {
+  ClerkProvider,
+  SignedIn,
+  SignedOut,
+  UserButton,
+  SignInButton,
+  useAuth,
+} from '@clerk/react-router';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useState } from 'react';
-import { 
-  DashboardIcon, 
-  FileTextIcon, 
-  CheckCircledIcon, 
-  ClockIcon, 
+import {
+  DashboardIcon,
+  FileTextIcon,
+  CheckCircledIcon,
+  ClockIcon,
   GearIcon,
-  HamburgerMenuIcon 
+  HamburgerMenuIcon,
 } from '@radix-ui/react-icons';
 
 import stylesheet from './app.css?url';
