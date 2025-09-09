@@ -1,59 +1,80 @@
 import type { Route } from '../+types/root';
+import { getVertexAIService } from '../lib/vertex-ai.server';
 
+/**
+ * Loader for a basic health check.
+ * Confirms that the Vertex AI service is initialized.
+ */
 export async function loader(_args: Route.LoaderArgs) {
-  const response = {
-    success: true,
-    message: 'Agent test endpoint is working',
-    details: {
-      projectId: process.env.GOOGLE_CLOUD_PROJECT_ID || 'not-configured',
-      location: process.env.GOOGLE_CLOUD_REGION || 'us-central1',
-      testResponse: 'Basic connectivity test passed',
-    },
-  };
-
-  return Response.json(response, {
-    status: 200,
-    headers: {
-      'Cache-Control': 'no-cache, no-store, must-revalidate',
-      'Content-Type': 'application/json',
-    },
-  });
-}
-
-export async function action(args: Route.ActionArgs) {
   try {
-    const body = await args.request.json();
+    const vertexAI = getVertexAIService();
+    const isReady = vertexAI.isInitialized();
 
-    if (!body.prompt) {
-      return Response.json({ error: 'Prompt is required' }, { status: 400 });
+    if (!isReady) {
+      throw new Error('Vertex AI Service failed to initialize.');
     }
 
-    const response = {
-      agent: 'test-agent',
-      version: '1.0.0',
-      timestamp: new Date().toISOString(),
-      response: `Echo: ${body.prompt}`,
-      status: 'success',
-      metadata: {
-        testMode: true,
-        receivedPrompt: body.prompt,
-      },
-    };
-
-    return Response.json(response, {
-      status: 200,
-      headers: {
-        'Cache-Control': 'no-cache, no-store, must-revalidate',
-        'Content-Type': 'application/json',
-      },
+    return Response.json({
+      status: 'ok',
+      message: 'Vertex AI service is initialized.',
+      mode: vertexAI.getMode(),
     });
   } catch (error) {
     return Response.json(
       {
-        agent: 'test-agent',
-        version: '1.0.0',
-        timestamp: new Date().toISOString(),
-        response: '',
+        status: 'error',
+        message: `Initialization failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      },
+      { status: 500 }
+    );
+  }
+}
+
+/**
+ * Action to handle interactions with the Vertex AI Agent.
+ * It routes requests to either create a session or query an existing one.
+ */
+export async function action(args: Route.ActionArgs) {
+  try {
+    const vertexAI = getVertexAIService();
+    const body = await args.request.json();
+
+    // Route the request based on the 'action' property in the body
+    switch (body.action) {
+      case 'create_session': {
+        console.log('Action: Creating a new agent session...');
+        const userId = body.user_id || 'default_user';
+        const { sessionId } = await vertexAI.createAgentSession(userId);
+        return Response.json({ sessionId });
+      }
+
+      case 'query_session': {
+        const { sessionId, prompt, user_id } = body;
+        if (!sessionId || !prompt) {
+          return Response.json(
+            { error: 'sessionId and prompt are required for querying.' },
+            { status: 400 }
+          );
+        }
+        console.log(`Action: Querying session ${sessionId.slice(-10)}...`);
+        const agentResponse = await vertexAI.streamQuery({
+          sessionId,
+          prompt,
+          userId: user_id || 'default_user',
+        });
+        return Response.json(agentResponse);
+      }
+
+      default: {
+        return Response.json(
+          { error: "Invalid action. Must be 'create_session' or 'query_session'." },
+          { status: 400 }
+        );
+      }
+    }
+  } catch (error) {
+    return Response.json(
+      {
         status: 'error',
         error: error instanceof Error ? error.message : 'Unknown error',
       },

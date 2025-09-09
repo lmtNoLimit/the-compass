@@ -10,6 +10,7 @@ import {
   GearIcon,
   HamburgerMenuIcon,
   Cross2Icon,
+  ChatBubbleIcon,
 } from '@radix-ui/react-icons';
 
 interface AppShellProps {
@@ -24,6 +25,7 @@ interface NavItem {
 
 const navItems: NavItem[] = [
   { to: '/dashboard', label: 'Dashboard', icon: DashboardIcon },
+  { to: '/agent', label: 'AI Agent', icon: ChatBubbleIcon },
   { to: '/briefs', label: 'Briefs', icon: FileTextIcon },
   { to: '/validations', label: 'Validations', icon: CheckCircledIcon },
   { to: '/history', label: 'History', icon: ClockIcon },
@@ -52,10 +54,10 @@ export function AppShell({ children }: AppShellProps) {
           to={item.to}
           onClick={onItemClick}
           className={({ isActive }) =>
-            `flex items-center gap-2 px-4 py-2 text-sm font-medium transition-colors ${
+            `flex items-center gap-2 px-4 py-2 text-sm font-medium transition-all duration-200 ${
               isActive
-                ? 'text-blue-600 bg-blue-50 rounded-md'
-                : 'text-gray-700 hover:text-gray-900 hover:bg-gray-50 rounded-md'
+                ? 'text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/30 rounded-md shadow-sm'
+                : 'text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-gray-800 rounded-md'
             } ${mobile ? 'w-full' : ''}`
           }
         >
@@ -67,9 +69,9 @@ export function AppShell({ children }: AppShellProps) {
   );
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-950">
       {/* Header */}
-      <header className="bg-white shadow-sm border-b border-gray-200">
+      <header className="bg-white dark:bg-gray-900 shadow-lg border-b border-gray-200 dark:border-gray-800">
         <div className="mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
             {/* Logo and Desktop Nav */}
@@ -78,7 +80,7 @@ export function AppShell({ children }: AppShellProps) {
               <Dialog.Root open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
                 <Dialog.Trigger asChild>
                   <button
-                    className="inline-flex items-center justify-center p-2 rounded-md text-gray-700 hover:text-gray-900 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-blue-500 sm:hidden"
+                    className="inline-flex items-center justify-center p-2 rounded-md text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-blue-500 sm:hidden transition-colors duration-200"
                     aria-label="Open menu"
                   >
                     <HamburgerMenuIcon className="w-5 h-5" />
@@ -87,9 +89,9 @@ export function AppShell({ children }: AppShellProps) {
 
                 {/* Mobile menu dialog */}
                 <Dialog.Portal>
-                  <Dialog.Overlay className="fixed inset-0 bg-black bg-opacity-30 sm:hidden" />
+                  <Dialog.Overlay className="fixed inset-0 bg-black/50 backdrop-blur-sm sm:hidden" />
                   <Dialog.Content
-                    className="fixed top-0 left-0 bottom-0 w-64 bg-white shadow-xl sm:hidden"
+                    className="fixed top-0 left-0 bottom-0 w-64 bg-white dark:bg-gray-900 shadow-2xl sm:hidden"
                     aria-describedby="mobile-menu-description"
                   >
                     <Dialog.Title className="sr-only">Navigation Menu</Dialog.Title>
@@ -97,10 +99,10 @@ export function AppShell({ children }: AppShellProps) {
                       Mobile navigation menu with links to different sections of the application
                     </Dialog.Description>
                     <div className="flex items-center justify-between p-4 border-b">
-                      <h2 className="text-lg font-bold text-gray-900">The Compass</h2>
+                      <h2 className="text-lg font-bold text-gray-900 dark:text-white">The Compass</h2>
                       <Dialog.Close asChild>
                         <button
-                          className="p-2 rounded-md text-gray-700 hover:bg-gray-100"
+                          className="p-2 rounded-md text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors duration-200"
                           aria-label="Close menu"
                         >
                           <Cross2Icon className="w-4 h-4" />
@@ -116,7 +118,7 @@ export function AppShell({ children }: AppShellProps) {
 
               {/* Logo */}
               <NavLink to="/" className="flex items-center ml-4 sm:ml-0">
-                <h1 className="text-xl font-bold text-gray-900">The Compass</h1>
+                <h1 className="text-xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 dark:from-blue-400 dark:to-indigo-400 bg-clip-text text-transparent">The Compass</h1>
               </NavLink>
 
               {/* Desktop Navigation */}
@@ -132,7 +134,7 @@ export function AppShell({ children }: AppShellProps) {
               {/* User email display (desktop only) */}
               <SignedIn>
                 {isLoaded && userEmail && (
-                  <span className="hidden lg:block text-sm text-gray-600">{userEmail}</span>
+                  <span className="hidden lg:block text-sm text-gray-600 dark:text-gray-400">{userEmail}</span>
                 )}
                 <UserButton
                   afterSignOutUrl="/"
@@ -146,7 +148,7 @@ export function AppShell({ children }: AppShellProps) {
               </SignedIn>
               <SignedOut>
                 <SignInButton mode="modal">
-                  <button className="px-4 py-2 text-sm font-medium text-gray-700 hover:text-gray-900 bg-white hover:bg-gray-50 border border-gray-300 rounded-md transition-colors">
+                  <button className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md transition-all duration-200 shadow-sm hover:shadow-md">
                     Sign In
                   </button>
                 </SignInButton>
@@ -157,8 +159,8 @@ export function AppShell({ children }: AppShellProps) {
 
         {/* Loading indicator */}
         {isNavigating && (
-          <div className="h-1 bg-blue-100">
-            <div className="h-full bg-blue-600 animate-pulse" />
+          <div className="h-1 bg-gradient-to-r from-blue-100 to-indigo-100 dark:from-blue-900 dark:to-indigo-900">
+            <div className="h-full bg-gradient-to-r from-blue-600 to-indigo-600 animate-pulse" />
           </div>
         )}
       </header>
@@ -169,9 +171,9 @@ export function AppShell({ children }: AppShellProps) {
       </main>
 
       {/* Footer */}
-      <footer className="bg-white border-t border-gray-200 mt-auto">
+      <footer className="bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-800 mt-auto">
         <div className="mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <p className="text-center text-sm text-gray-500">
+          <p className="text-center text-sm text-gray-500 dark:text-gray-400">
             © 2025 The Compass. All rights reserved.
           </p>
         </div>

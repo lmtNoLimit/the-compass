@@ -17,7 +17,8 @@ if (process.env.NODE_ENV === 'production') {
     global.__db__ = new PrismaClient();
   }
   prisma = global.__db__;
-  prisma.$connect();
+  // Don't auto-connect in development to avoid startup crashes
+  // Connection will be established on first query
 }
 
 export { prisma };

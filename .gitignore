@@ -75,3 +75,6 @@ htmlcov/
 *.egg-info/
 dist/
 .python-version
+
+
+.playwright-mcp

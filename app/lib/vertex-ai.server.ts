@@ -1,216 +1,333 @@
 /**
  * Vertex AI Server Configuration Module
  *
- * This module provides server-side configuration and utilities for
- * communicating with deployed AI agents on Google Vertex AI.
+ * This module provides server-side utilities for communicating with deployed
+ * Vertex AI Reasoning Engines (Agent Engine).
  */
 
-import { VertexAI } from '@google-cloud/vertexai';
+// This library is needed to get an authentication token for API calls
+import { GoogleAuth } from 'google-auth-library';
 
-// Define types for agent communication
-export interface AgentRequest {
+// Request type for querying a session
+export interface AgentQueryRequest {
+  sessionId: string;
   prompt: string;
-  context?: Record<string, any>;
-  agentName?: string;
-  parameters?: Record<string, any>;
+  userId?: string;
 }
 
-export interface AgentResponse {
-  agent: string;
-  version: string;
-  timestamp: string;
-  response: string;
-  status: 'success' | 'error';
-  metadata?: Record<string, any>;
-  error?: string;
-}
-
-export interface VertexAIConfig {
-  projectId: string;
-  location: string;
-  credentials?: string;
-}
-
-/**
- * VertexAIService class for managing connections to deployed agents
- */
 export class VertexAIService {
-  private client: VertexAI | undefined;
   private projectId: string;
   private location: string;
+  private agentId: string;
+  private auth: GoogleAuth;
   private initialized: boolean = false;
 
-  constructor(config?: Partial<VertexAIConfig>) {
-    this.projectId = config?.projectId || process.env.GOOGLE_CLOUD_PROJECT_ID || '';
-    this.location = config?.location || process.env.GOOGLE_CLOUD_REGION || 'us-central1';
+  constructor() {
+    this.projectId = process.env.GOOGLE_CLOUD_PROJECT_ID || '';
+    this.location = process.env.GOOGLE_CLOUD_REGION || 'us-central1';
+    this.agentId = process.env.VERTEX_AGENT_ID || '';
 
-    if (!this.projectId) {
-      throw new Error('GOOGLE_CLOUD_PROJECT_ID is required for Vertex AI');
-    }
-
-    // Initialize Vertex AI client
-    this.initializeClient();
-  }
-
-  /**
-   * Initialize the Vertex AI client with proper authentication
-   */
-  private initializeClient(): void {
-    try {
-      // Check for service account credentials
-      const credentialsPath = process.env.GOOGLE_APPLICATION_CREDENTIALS;
-      const credentialsJson = process.env.GOOGLE_CLOUD_KEY_JSON;
-
-      if (credentialsJson) {
-        // Parse JSON credentials if provided directly
-        const credentials = JSON.parse(credentialsJson);
-        process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON = JSON.stringify(credentials);
-      } else if (!credentialsPath) {
-        console.warn('No Google Cloud credentials found. Using application default credentials.');
-      }
-
-      this.client = new VertexAI({
-        project: this.projectId,
-        location: this.location,
-      });
-
-      this.initialized = true;
-    } catch (error) {
-      console.error('Failed to initialize Vertex AI client:', error);
+    if (!this.projectId || !this.agentId) {
       throw new Error(
-        `Vertex AI initialization failed: ${error instanceof Error ? error.message : 'Unknown error'}`
+        'Both GOOGLE_CLOUD_PROJECT_ID and VERTEX_AGENT_ID environment variables are required.'
       );
     }
+
+    // Initialize Google Auth
+    try {
+      // Check if we have service account credentials in environment
+      const keyJson = process.env.GOOGLE_CLOUD_KEY_JSON;
+      if (keyJson) {
+        // Parse and use the service account key
+        const credentials = JSON.parse(keyJson);
+        this.auth = new GoogleAuth({
+          credentials,
+          scopes: ['https://www.googleapis.com/auth/cloud-platform'],
+        });
+      } else {
+        // Use default credentials (ADC)
+        this.auth = new GoogleAuth({
+          scopes: ['https://www.googleapis.com/auth/cloud-platform'],
+        });
+      }
+    } catch (error) {
+      console.error('Failed to initialize Google Auth:', error);
+      // Fallback to default auth
+      this.auth = new GoogleAuth({
+        scopes: ['https://www.googleapis.com/auth/cloud-platform'],
+      });
+    }
+
+    this.initialized = true;
+    console.log('VertexAIService (Agent Engine) initialized successfully.');
   }
 
   /**
-   * Test the connection to Vertex AI
+   * Helper function to get a valid OAuth 2.0 access token.
    */
-  async testConnection(): Promise<{ success: boolean; message: string; details?: any }> {
+  private async getAccessToken(): Promise<string> {
+    const client = await this.auth.getClient();
+    const token = await client.getAccessToken();
+    if (!token.token) {
+      throw new Error('Failed to retrieve access token.');
+    }
+    return token.token;
+  }
+
+  /**
+   * Creates a session for the deployed Agent Engine.
+   * For Agent Engines with AdkApp, we need to create remote sessions.
+   */
+  async createAgentSession(userId: string = 'default_user'): Promise<{ sessionId: string }> {
     if (!this.initialized) {
-      return {
-        success: false,
-        message: 'Vertex AI client not initialized',
-      };
+      throw new Error('Vertex AI service not initialized');
     }
 
+    // For Agent Engines with AdkApp, create a remote session using create_session method
     try {
-      // Try to get a simple model to test connectivity
-      if (!this.client) {
-        throw new Error('Client not initialized');
-      }
-      const model = this.client.getGenerativeModel({ model: 'gemini-1.5-flash' });
+      const apiUrl = `${process.env.VERTEX_AGENT_ENDPOINT}`;
+      const token = await this.getAccessToken();
 
-      // Send a simple test prompt
-      const result = await model.generateContent({
-        contents: [
-          {
-            role: 'user',
-            parts: [
-              {
-                text: 'Hello, this is a connection test. Please respond with "Connection successful".',
-              },
-            ],
-          },
-        ],
+      const createSessionPayload = {
+        class_method: 'async_create_session',
+        input: {
+          user_id: userId,
+        },
+      };
+
+      console.log(
+        'Creating Agent Engine session with payload:',
+        JSON.stringify(createSessionPayload, null, 2)
+      );
+
+      const response = await fetch(`${apiUrl}:query`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(createSessionPayload),
       });
 
-      const response = result.response.candidates?.[0]?.content?.parts?.[0]?.text;
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error(`Failed to create session: ${response.status}: ${errorText}`);
+        throw new Error(`Failed to create session: ${response.status}`);
+      }
 
-      return {
-        success: true,
-        message: 'Vertex AI connection successful',
-        details: {
-          projectId: this.projectId,
-          location: this.location,
-          testResponse: response,
-        },
-      };
+      const result = await response.json();
+      console.log('Session creation response:', JSON.stringify(result, null, 2));
+
+      // Extract session ID from the response
+      let sessionId = '';
+      if (result.output && result.output.id) {
+        // Agent Engine returns session ID in output.id
+        sessionId = String(result.output.id);
+      } else if (result.output && result.output.session_id) {
+        sessionId = String(result.output.session_id);
+      } else if (result.session_id) {
+        sessionId = String(result.session_id);
+      } else if (result.id) {
+        // Sometimes just 'id' at root level
+        sessionId = String(result.id);
+      } else if (result.output && typeof result.output === 'string') {
+        // Sometimes the session ID might be in a string format
+        sessionId = result.output;
+      } else {
+        // Fallback: generate client-side session ID
+        sessionId = `session_${userId}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        console.warn('Could not extract session ID from response, using client-generated ID');
+      }
+
+      console.log(`Created Agent Engine session: ${sessionId}`);
+      return { sessionId };
     } catch (error) {
-      return {
-        success: false,
-        message: `Connection test failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
-        details: {
-          projectId: this.projectId,
-          location: this.location,
-          error: error instanceof Error ? error.toString() : 'Unknown error',
-        },
-      };
+      console.error('Failed to create Agent Engine session:', error);
+      // Fallback to client-generated session ID
+      const sessionId = `session_${userId}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      console.log(`Falling back to client-generated session ID: ${sessionId}`);
+      return { sessionId };
     }
   }
 
   /**
-   * Call a deployed agent on Vertex AI
-   * Note: This is a placeholder for actual agent communication
-   * In production, this would call the deployed agent endpoint
+   * Streams a query to the deployed Reasoning Engine.
+   * Uses the proper Vertex AI Reasoning Engines API format with async_stream_query.
    */
-  async callAgent(request: AgentRequest): Promise<AgentResponse> {
+  async streamQuery(request: AgentQueryRequest): Promise<any> {
     if (!this.initialized) {
-      return {
-        agent: request.agentName || 'unknown',
-        version: '0.0.0',
-        timestamp: new Date().toISOString(),
-        response: '',
-        status: 'error',
-        error: 'Vertex AI client not initialized',
-      };
+      throw new Error('Vertex AI service not initialized');
     }
+
+    // Vertex AI Agent Engine query endpoint for ADK agents with SSE streaming
+    const apiUrl = `https://${this.location}-aiplatform.googleapis.com/v1/projects/${this.projectId}/locations/${this.location}/reasoningEngines/${this.agentId}:streamQuery?alt=sse`;
 
     try {
-      // For now, we'll use a generative model as a placeholder
-      // In production, this would call the actual deployed agent endpoint
-      if (!this.client) {
-        throw new Error('Client not initialized');
-      }
-      const model = this.client.getGenerativeModel({ model: 'gemini-1.5-flash' });
+      const token = await this.getAccessToken();
 
-      const prompt = `Acting as a test agent, please respond to this prompt: ${request.prompt}`;
-      const result = await model.generateContent({
-        contents: [{ role: 'user', parts: [{ text: prompt }] }],
-      });
-
-      const responseText =
-        result.response.candidates?.[0]?.content?.parts?.[0]?.text || 'No response generated';
-
-      return {
-        agent: request.agentName || 'test-agent',
-        version: '1.0.0',
-        timestamp: new Date().toISOString(),
-        response: responseText,
-        status: 'success',
-        metadata: {
-          projectId: this.projectId,
-          location: this.location,
-          context: request.context,
+      // Prepare the request payload matching the exact curl format
+      const requestPayload = {
+        class_method: 'async_stream_query',
+        input: {
+          user_id: request.userId || 'default_user',
+          session_id: request.sessionId,
+          message: request.prompt,
         },
       };
-    } catch (error) {
+
+      console.log(`Querying Agent Engine with payload:`, JSON.stringify(requestPayload, null, 2));
+      console.log(`API URL: ${apiUrl}`);
+
+      const response = await fetch(apiUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+          Accept: 'text/event-stream', // Explicitly accept SSE
+        },
+        body: JSON.stringify(requestPayload),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error(`API error (${response.status}):`, errorText);
+        throw new Error(`API error (${response.status}): ${errorText}`);
+      }
+
+      // Handle SSE streaming response using ReadableStream
+      const reader = response.body?.getReader();
+      if (!reader) {
+        throw new Error('Response body is not readable');
+      }
+
+      const decoder = new TextDecoder();
+      const events: any[] = [];
+      let buffer = '';
+
+      try {
+        while (true) {
+          const { done, value } = await reader.read();
+          
+          if (done) {
+            break;
+          }
+
+          // Decode the chunk and add to buffer
+          buffer += decoder.decode(value, { stream: true });
+          
+          // Split buffer by newlines to process complete SSE events
+          const lines = buffer.split('\n');
+          
+          // Keep the last incomplete line in the buffer
+          buffer = lines.pop() || '';
+          
+          // Process complete lines
+          for (const line of lines) {
+            if (line.startsWith('data: ')) {
+              try {
+                const eventData = JSON.parse(line.substring(6));
+                events.push(eventData);
+                console.log('Received SSE event:', JSON.stringify(eventData, null, 2));
+              } catch (e) {
+                // Check if it's [DONE] or other non-JSON data
+                const dataContent = line.substring(6).trim();
+                if (dataContent !== '[DONE]' && dataContent !== '') {
+                  console.warn('Failed to parse SSE event:', line);
+                }
+              }
+            }
+          }
+        }
+        
+        // Process any remaining data in buffer
+        if (buffer.trim() && buffer.startsWith('data: ')) {
+          try {
+            const eventData = JSON.parse(buffer.substring(6));
+            events.push(eventData);
+          } catch (e) {
+            const dataContent = buffer.substring(6).trim();
+            if (dataContent !== '[DONE]' && dataContent !== '') {
+              console.warn('Failed to parse final SSE event:', buffer);
+            }
+          }
+        }
+      } finally {
+        reader.releaseLock();
+      }
+
+      console.log(`Parsed ${events.length} SSE events`);
+
+      // Extract the final response from events
+      let finalResponse = '';
+      let fullOutput = {};
+
+      // Process all events to build the complete response
+      for (const event of events) {
+        if (event.output) {
+          if (typeof event.output === 'string') {
+            finalResponse += event.output;
+          } else if (event.output.text) {
+            finalResponse += event.output.text;
+          } else if (event.output.message) {
+            finalResponse += event.output.message;
+          } else if (event.output.response) {
+            finalResponse += typeof event.output.response === 'string' 
+              ? event.output.response 
+              : JSON.stringify(event.output.response);
+          } else {
+            // Store structured output
+            fullOutput = { ...fullOutput, ...event.output };
+          }
+        } else if (event.response) {
+          finalResponse +=
+            typeof event.response === 'string' ? event.response : JSON.stringify(event.response);
+        } else if (event.text) {
+          finalResponse += event.text;
+        } else if (event.message) {
+          finalResponse += event.message;
+        } else if (event.content) {
+          // Handle content field (common in SSE responses)
+          if (typeof event.content === 'string') {
+            finalResponse += event.content;
+          } else if (event.content.text) {
+            finalResponse += event.content.text;
+          } else if (event.content.message) {
+            finalResponse += event.content.message;
+          }
+        }
+      }
+
+      // If no text response was found, use the structured output
+      if (!finalResponse && Object.keys(fullOutput).length > 0) {
+        finalResponse = JSON.stringify(fullOutput, null, 2);
+      }
+
+      // If still no response, return the raw events for debugging
+      if (!finalResponse && events.length > 0) {
+        console.log('No text found in events, returning last event');
+        finalResponse = JSON.stringify(events[events.length - 1], null, 2);
+      }
+
+      console.log(`Successfully queried Agent Engine for session ${request.sessionId}`);
+      console.log(`Final response length: ${finalResponse.length} characters`);
+
       return {
-        agent: request.agentName || 'unknown',
-        version: '0.0.0',
-        timestamp: new Date().toISOString(),
-        response: '',
-        status: 'error',
-        error: `Agent call failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        response: finalResponse || 'No response generated',
+        events: events, // Include all events for debugging
+        sessionId: request.sessionId,
       };
+    } catch (error) {
+      console.error('Failed to query Agent Engine:', error);
+      throw new Error(`Could not query agent session: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
 
-  /**
-   * Get the current configuration
-   */
-  getConfig(): VertexAIConfig {
-    return {
-      projectId: this.projectId,
-      location: this.location,
-    };
-  }
-
-  /**
-   * Check if the service is initialized
-   */
   isInitialized(): boolean {
     return this.initialized;
+  }
+
+  getMode(): string {
+    return 'Agent Engine';
   }
 }
 
