@@ -47,3 +47,36 @@ export interface VertexAIHealthCheck {
     error?: string;
   };
 }
+
+// Multi-Agent Support Types
+export interface AgentInfo {
+  id: string;
+  name: string;
+  description: string;
+  status: 'active' | 'inactive';
+  endpoint?: string;
+  capabilities: string[];
+}
+
+export interface ChatSession {
+  sessionId: string;
+  userId: string;
+  agentId: string;
+  title?: string;
+  createdAt: Date;
+  lastMessageAt: Date;
+  messageCount: number;
+}
+
+export interface ChatMessage {
+  id: string;
+  sessionId: string;
+  role: 'user' | 'assistant';
+  content: string;
+  timestamp: Date;
+  metadata?: {
+    agentId: string;
+    processingTime?: number;
+    tokenCount?: number;
+  };
+}

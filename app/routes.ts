@@ -8,7 +8,9 @@ export default [
 
   // API routes
   route('api/health', 'routes/api.health.tsx'),
-  route('api/agent-test', 'routes/api.agent-test.tsx'),
+  route('api/chat', 'routes/api.chat.tsx'),
+  route('api/chat/session', 'routes/api.chat.session.tsx'),
+  route('api/chat/query', 'routes/api.chat.query.tsx'),
   route('api/clerk-webhook', 'routes/api.clerk-webhook.tsx'),
 
   // Protected routes
@@ -18,7 +20,8 @@ export default [
     route('dashboard', 'routes/dashboard.tsx'),
     route('history', 'routes/history.tsx'),
     route('settings', 'routes/settings.tsx'),
-    route('agent', 'routes/agent.tsx'),
+    route('chat', 'routes/chat.tsx'),
+    route('conversation/:id', 'routes/conversation.$id.tsx'),
     route('validations', 'routes/validations._index.tsx'),
   ]),
 ] satisfies RouteConfig;
