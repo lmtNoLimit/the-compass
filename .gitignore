@@ -53,7 +53,7 @@ apps/web/prisma/*.db-journal
 
 # Google Cloud Service Account Keys
 *-key.json
-service-account-*.json
+service-account*.json
 gcp-*.json
 google-*.json
 
