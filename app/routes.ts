@@ -11,6 +11,7 @@ export default [
   route('api/chat', 'routes/api.chat.tsx'),
   route('api/chat/session', 'routes/api.chat.session.tsx'),
   route('api/chat/query', 'routes/api.chat.query.tsx'),
+  route('api/agents/*', 'routes/api.agents.tsx'),
   route('api/clerk-webhook', 'routes/api.clerk-webhook.tsx'),
 
   // Protected routes
@@ -22,6 +23,7 @@ export default [
     route('settings', 'routes/settings.tsx'),
     route('chat', 'routes/chat.tsx'),
     route('chat/:id', 'routes/chat.$id.tsx'),
+    route('agents', 'routes/agents.tsx'),
     route('validations', 'routes/validations._index.tsx'),
   ]),
 ] satisfies RouteConfig;
