@@ -15,18 +15,27 @@ export async function action(args: any) {
     const body = await args.request.json();
     const { sessionId, prompt, agentId = 'demo-agent' } = body;
 
-    if (!sessionId || !prompt) {
+    if (!prompt) {
       return Response.json(
-        { error: 'sessionId and prompt are required for querying.' },
+        { error: 'prompt is required for querying.' },
         { status: 400 }
       );
     }
 
-    console.log(`Action: Querying ${agentId} session ${sessionId.slice(-10)}...`);
+    // If no sessionId provided, backend will auto-create one
+    let effectiveSessionId = sessionId;
+    if (!sessionId) {
+      // Backend auto-creates session on first query
+      const { sessionId: newSessionId } = await agentEngine.createSession(userId, agentId);
+      effectiveSessionId = newSessionId;
+      console.log(`Action: Auto-created session ${newSessionId.slice(-10)} for ${agentId}`);
+    }
+
+    console.log(`Action: Querying ${agentId} session ${effectiveSessionId.slice(-10)}...`);
     const startTime = Date.now();
 
     const agentResponse = await agentEngine.streamQuery({
-      sessionId,
+      sessionId: effectiveSessionId,
       prompt,
       userId,
       agentId,
@@ -36,6 +45,7 @@ export async function action(args: any) {
 
     return Response.json({
       ...agentResponse,
+      sessionId: effectiveSessionId,
       metadata: {
         agentId,
         userId,

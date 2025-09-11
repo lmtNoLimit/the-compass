@@ -21,7 +21,7 @@ export default [
     route('history', 'routes/history.tsx'),
     route('settings', 'routes/settings.tsx'),
     route('chat', 'routes/chat.tsx'),
-    route('conversation/:id', 'routes/conversation.$id.tsx'),
+    route('chat/:id', 'routes/chat.$id.tsx'),
     route('validations', 'routes/validations._index.tsx'),
   ]),
 ] satisfies RouteConfig;
