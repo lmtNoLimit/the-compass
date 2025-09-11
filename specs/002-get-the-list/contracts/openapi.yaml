@@ -1,0 +1,336 @@
+openapi: 3.0.0
+info:
+  title: Agent Discovery API
+  description: API for discovering and selecting AI agents from Vertex AI Agent Engine
+  version: 1.0.0
+servers:
+  - url: /api
+    description: API base path
+
+paths:
+  /agents:
+    get:
+      summary: Get list of available agents
+      description: Retrieves all deployed agents from Vertex AI Agent Engine
+      operationId: getAgents
+      parameters:
+        - name: refresh
+          in: query
+          description: Force refresh bypassing cache
+          required: false
+          schema:
+            type: boolean
+            default: false
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentListResponse'
+        '401':
+          description: Unauthorized - authentication required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /agents/{agentId}:
+    get:
+      summary: Get specific agent details
+      description: Retrieves detailed information about a specific agent
+      operationId: getAgentById
+      parameters:
+        - name: agentId
+          in: path
+          description: Unique agent identifier
+          required: true
+          schema:
+            type: string
+            pattern: '^[a-z0-9][a-z0-9-]*[a-z0-9]$'
+      responses:
+        '200':
+          description: Agent found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Agent'
+        '404':
+          description: Agent not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /agents/select:
+    post:
+      summary: Select an agent for current session
+      description: Updates the current user session to use the specified agent
+      operationId: selectAgent
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AgentSelectionRequest'
+      responses:
+        '200':
+          description: Agent selected successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentSelectionResponse'
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Agent not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /agents/refresh:
+    post:
+      summary: Force refresh agent list
+      description: Invalidates cache and fetches fresh agent list from Vertex AI
+      operationId: refreshAgents
+      responses:
+        '200':
+          description: Refresh initiated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RefreshResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+components:
+  schemas:
+    Agent:
+      type: object
+      required:
+        - id
+        - name
+        - description
+        - status
+        - capabilities
+      properties:
+        id:
+          type: string
+          description: Unique agent identifier
+          example: "enterprise-admin"
+        name:
+          type: string
+          description: Display name of the agent
+          minLength: 1
+          maxLength: 100
+          example: "Enterprise Admin"
+        description:
+          type: string
+          description: Detailed description of agent capabilities
+          minLength: 10
+          maxLength: 500
+          example: "Enterprise IT Administrator persona for user interviews"
+        status:
+          $ref: '#/components/schemas/AgentStatus'
+        endpoint:
+          type: string
+          format: uri
+          description: API endpoint for the agent
+          example: "https://us-central1-aiplatform.googleapis.com/v1/projects/my-project/locations/us-central1/reasoningEngines/abc123"
+        capabilities:
+          type: array
+          description: List of agent capabilities
+          minItems: 0
+          maxItems: 20
+          items:
+            type: string
+            minLength: 1
+            maxLength: 50
+          example: ["persona-simulation", "interview", "enterprise-context"]
+        projectId:
+          type: string
+          description: GCP project ID
+          example: "my-gcp-project"
+        location:
+          type: string
+          description: Deployment location
+          example: "us-central1"
+        version:
+          type: string
+          description: Agent version
+          pattern: '^\d+\.\d+\.\d+$'
+          example: "1.2.0"
+        lastUpdated:
+          type: string
+          format: date-time
+          description: Last modification timestamp
+          example: "2025-09-11T10:30:00Z"
+        metadata:
+          $ref: '#/components/schemas/AgentMetadata'
+
+    AgentStatus:
+      type: string
+      enum:
+        - active
+        - inactive
+        - error
+      description: Current operational status of the agent
+
+    AgentMetadata:
+      type: object
+      description: Extended agent information
+      properties:
+        modelType:
+          type: string
+          description: Underlying AI model
+          example: "gemini-pro"
+        maxTokens:
+          type: integer
+          description: Maximum token limit
+          example: 8192
+        responseTime:
+          type: number
+          description: Average response time in milliseconds
+          example: 250.5
+        supportedLanguages:
+          type: array
+          items:
+            type: string
+          example: ["en", "es", "fr"]
+        customConfig:
+          type: object
+          additionalProperties: true
+          description: Agent-specific configuration
+
+    AgentListResponse:
+      type: object
+      required:
+        - agents
+        - timestamp
+        - cached
+        - totalCount
+      properties:
+        agents:
+          type: array
+          items:
+            $ref: '#/components/schemas/Agent'
+        timestamp:
+          type: string
+          format: date-time
+          description: Response timestamp
+        cached:
+          type: boolean
+          description: Whether response is from cache
+        totalCount:
+          type: integer
+          description: Total number of agents
+          minimum: 0
+
+    AgentSelectionRequest:
+      type: object
+      required:
+        - agentId
+      properties:
+        agentId:
+          type: string
+          description: ID of agent to select
+        preserveHistory:
+          type: boolean
+          description: Whether to preserve chat history
+          default: true
+        context:
+          type: object
+          properties:
+            source:
+              type: string
+              enum: ["chat", "agents-page", "quick-switch"]
+            sessionId:
+              type: string
+
+    AgentSelectionResponse:
+      type: object
+      required:
+        - success
+        - agentId
+        - timestamp
+      properties:
+        success:
+          type: boolean
+        agentId:
+          type: string
+        previousAgentId:
+          type: string
+        sessionId:
+          type: string
+        timestamp:
+          type: string
+          format: date-time
+
+    RefreshResponse:
+      type: object
+      required:
+        - success
+        - message
+        - agentCount
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+        agentCount:
+          type: integer
+        timestamp:
+          type: string
+          format: date-time
+
+    ErrorResponse:
+      type: object
+      required:
+        - error
+        - message
+      properties:
+        error:
+          type: string
+          description: Error code
+        message:
+          type: string
+          description: Human-readable error message
+        details:
+          type: object
+          additionalProperties: true
+        timestamp:
+          type: string
+          format: date-time
