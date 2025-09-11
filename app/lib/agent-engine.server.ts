@@ -145,6 +145,7 @@ export class AgentEngineService {
       }
 
       const data = await response.json();
+      console.log('agents', data)
       const agents: AgentConfig[] = [];
 
       if (data.reasoningEngines && Array.isArray(data.reasoningEngines)) {
