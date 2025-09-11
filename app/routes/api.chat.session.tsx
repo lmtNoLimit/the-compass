@@ -5,6 +5,9 @@ import { getAuth } from '@clerk/react-router/ssr.server';
 /**
  * Session Management API Endpoint
  * Handles session creation, deletion, and listing
+ * 
+ * @deprecated Session creation is now handled automatically by the query API.
+ * This endpoint is maintained for backward compatibility and session listing/deletion only.
  */
 export async function action(args: any) {
   try {

@@ -29,7 +29,6 @@ interface ModernAgentChatProps {
 export function ModernAgentChat({ agents, conversation, conversationId }: ModernAgentChatProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputValue, setInputValue] = useState('');
-  const [sessionId, setSessionId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [availableAgents] = useState<AgentInfo[]>(agents);
   const [selectedAgent, setSelectedAgent] = useState<string>(() => {
@@ -40,17 +39,14 @@ export function ModernAgentChat({ agents, conversation, conversationId }: Modern
   const [sessions, setSessions] = useState<Session[]>([]);
   const [showSidebar, setShowSidebar] = useState(true);
   const [isLoadingSessions, setIsLoadingSessions] = useState(false);
-  const [deletingSessionId, setDeletingSessionId] = useState<string | null>(null);
-  const [loadingSessionId, setLoadingSessionId] = useState<string | null>(null);
+  const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  // Initialize conversation and sessions on mount
+  // Initialize conversation from props if provided (for backward compatibility)
   useEffect(() => {
     if (conversation && conversationId) {
-      // Load conversation from props
-      setSessionId(conversationId);
-      
-      // Parse conversation history (reusing existing parsing logic)
+      setCurrentSessionId(conversationId);
+      // Parse conversation history for backward compatibility
       const sessionMessages: Message[] = [];
       
       const extractTextContent = (content: any): string => {
@@ -122,59 +118,22 @@ export function ModernAgentChat({ agents, conversation, conversationId }: Modern
       setMessages(sessionMessages);
     }
     
+    // Fetch existing sessions for sidebar
     fetchSessions();
   }, [conversation, conversationId, selectedAgent]);
 
-  // Create a new session when component mounts or agent changes
+  // Add welcome message when switching to Enterprise Admin
   useEffect(() => {
-    const initSession = async () => {
-      if (!selectedAgent || conversationId) return; // Skip if loading specific conversation
-      
-      try {
-        const response = await fetch('/api/chat/session', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            action: 'create_session',
-            agentId: selectedAgent,
-          }),
-        });
-
-        if (response.ok) {
-          const data = await response.json();
-          setSessionId(data.sessionId);
-          console.log(`Session created for ${selectedAgent}:`, data.sessionId);
-          
-          // Clear messages when switching agents
-          setMessages([]);
-          
-          // Add welcome message for Enterprise Admin
-          if (selectedAgent === 'enterprise-admin') {
-            const welcomeMessage: Message = {
-              id: `agent-welcome-${Date.now()}`,
-              role: 'agent',
-              content: "Hello! I'm an Enterprise IT Administrator with over 10 years of experience managing systems at Fortune 500 companies. I can help you understand enterprise IT challenges, security concerns, and procurement processes. What would you like to discuss?",
-              timestamp: new Date(),
-              agentId: selectedAgent,
-            };
-            setMessages([welcomeMessage]);
-          }
-          
-          // Refresh sessions after creating new one
-          fetchSessions();
-        } else {
-          console.error('Failed to create session');
-          setSessionId(null);
-        }
-      } catch (error) {
-        console.error('Error creating session:', error);
-        setSessionId(null);
-      }
-    };
-
-    initSession();
+    if (selectedAgent === 'enterprise-admin' && messages.length === 0) {
+      const welcomeMessage: Message = {
+        id: `agent-welcome-${Date.now()}`,
+        role: 'agent',
+        content: "Hello! I'm an Enterprise IT Administrator with over 10 years of experience managing systems at Fortune 500 companies. I can help you understand enterprise IT challenges, security concerns, and procurement processes. What would you like to discuss?",
+        timestamp: new Date(),
+        agentId: selectedAgent,
+      };
+      setMessages([welcomeMessage]);
+    }
   }, [selectedAgent]);
 
   // Auto-scroll to bottom when new messages are added
@@ -182,7 +141,7 @@ export function ModernAgentChat({ agents, conversation, conversationId }: Modern
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  // Fetch sessions
+  // Fetch sessions for display in sidebar
   const fetchSessions = async () => {
     setIsLoadingSessions(true);
     try {
@@ -212,63 +171,32 @@ export function ModernAgentChat({ agents, conversation, conversationId }: Modern
     }
   };
 
-
-  // Delete a session with optimistic UI updates
+  // Simple session deletion (UI only, backend handles cleanup)
   const deleteSession = async (sessionId: string) => {
-    if (!confirm('Are you sure you want to delete this session?')) return;
-
-    // Set deleting state for visual feedback
-    setDeletingSessionId(sessionId);
-
-    // Optimistic update: immediately remove the session from UI after a brief delay
-    // This allows users to see the visual feedback before removal
-    setTimeout(() => {
-      const optimisticSessions = sessions.filter(session => session.id !== sessionId);
-      setSessions(optimisticSessions);
-      setDeletingSessionId(null);
-    }, 300);
-
-    // Keep original sessions for potential revert
-    const originalSessions = [...sessions];
-
-    try {
-      const response = await fetch('/api/chat/session', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          action: 'delete_session',
-          sessionId,
-          agentId: selectedAgent,
-        }),
-      });
-
-      if (!response.ok) {
-        // If request failed, revert the optimistic update
-        console.error('Failed to delete session, reverting...');
-        setSessions(originalSessions);
-        setDeletingSessionId(null);
-        
-        // Show error message to user (you could replace this with a toast notification)
-        const errorData = await response.json().catch(() => ({}));
-        console.error('Delete session error:', errorData.error || 'Unknown error');
-      }
-      // If successful, the optimistic update already happened
-    } catch (error) {
-      console.error('Error deleting session:', error);
-      
-      // Revert optimistic update on network error
-      setSessions(originalSessions);
-      setDeletingSessionId(null);
-      console.error('Network error: Failed to delete session');
-    }
+    if (!confirm('Are you sure you want to delete this chat?')) return;
+    
+    // Remove from UI immediately
+    setSessions(prev => prev.filter(s => s.id !== sessionId));
+    
+    // Notify backend (fire and forget)
+    fetch('/api/chat/session', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action: 'delete_session',
+        sessionId,
+        agentId: selectedAgent,
+      }),
+    }).catch(console.error);
   };
+
+
+
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!inputValue.trim() || !sessionId) return;
+    if (!inputValue.trim()) return;
 
     const userMessage: Message = {
       id: `user-${Date.now()}`,
@@ -290,7 +218,6 @@ export function ModernAgentChat({ agents, conversation, conversationId }: Modern
         },
         body: JSON.stringify({
           agentId: selectedAgent,
-          sessionId: sessionId,
           prompt: currentPrompt,
         }),
       });
@@ -312,6 +239,13 @@ export function ModernAgentChat({ agents, conversation, conversationId }: Modern
       }
 
       const data = await response.json();
+      
+      // Backend auto-creates session on first message
+      if (data.sessionId && !currentSessionId) {
+        setCurrentSessionId(data.sessionId);
+        // Refresh sessions list to show new session
+        fetchSessions();
+      }
 
       // Extract the response content
       let responseContent = '';
@@ -387,58 +321,29 @@ export function ModernAgentChat({ agents, conversation, conversationId }: Modern
     }
   };
 
-  const handleNewSession = async () => {
-    // Clear current session state
+  const handleNewChat = () => {
+    // Simply clear messages for a fresh chat
     setMessages([]);
-    setSessionId(null);
-    setLoadingSessionId(null);
-    setDeletingSessionId(null);
     
-    // Create a new session immediately
-    if (!selectedAgent) return;
-    
-    try {
-      const response = await fetch('/api/chat/session', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          action: 'create_session',
-          agentId: selectedAgent,
-        }),
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        setSessionId(data.sessionId);
-        console.log(`New session created for ${selectedAgent}:`, data.sessionId);
-        
-        // Add welcome message for Enterprise Admin
-        if (selectedAgent === 'enterprise-admin') {
-          const welcomeMessage: Message = {
-            id: `agent-welcome-${Date.now()}`,
-            role: 'agent',
-            content: "Hello! I'm an Enterprise IT Administrator with over 10 years of experience managing systems at Fortune 500 companies. I can help you understand enterprise IT challenges, security concerns, and procurement processes. What would you like to discuss?",
-            timestamp: new Date(),
-            agentId: selectedAgent,
-          };
-          setMessages([welcomeMessage]);
-        }
-        
-        // Refresh sessions list
-        fetchSessions();
-      } else {
-        console.error('Failed to create new session');
-      }
-    } catch (error) {
-      console.error('Error creating new session:', error);
+    // Add welcome message for Enterprise Admin
+    if (selectedAgent === 'enterprise-admin') {
+      const welcomeMessage: Message = {
+        id: `agent-welcome-${Date.now()}`,
+        role: 'agent',
+        content: "Hello! I'm an Enterprise IT Administrator with over 10 years of experience managing systems at Fortune 500 companies. I can help you understand enterprise IT challenges, security concerns, and procurement processes. What would you like to discuss?",
+        timestamp: new Date(),
+        agentId: selectedAgent,
+      };
+      setMessages([welcomeMessage]);
     }
   };
 
   const handleAgentChange = (agentId: string) => {
+    // UI-only operation - just update selected agent
     setSelectedAgent(agentId);
     setShowAgentSelector(false);
+    // Clear messages when switching agents
+    setMessages([]);
   };
 
   const formatDate = (timestamp: number) => {
@@ -468,7 +373,7 @@ export function ModernAgentChat({ agents, conversation, conversationId }: Modern
             <div className="flex items-center justify-between mb-3">
               <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Chats</h2>
               <button
-                onClick={handleNewSession}
+                onClick={handleNewChat}
                 className="p-2 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
                 title="New chat"
               >
@@ -523,39 +428,23 @@ export function ModernAgentChat({ agents, conversation, conversationId }: Modern
                   <div
                     key={session.id}
                     className={`group flex items-center justify-between p-3 rounded-lg cursor-pointer mb-1 transition-all duration-300 ${
-                      sessionId === session.id
+                      currentSessionId === session.id
                         ? 'bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700'
                         : 'hover:bg-gray-100 dark:hover:bg-gray-700'
-                    } ${
-                      deletingSessionId === session.id 
-                        ? 'opacity-50 scale-95 bg-red-50 dark:bg-red-900/20' 
-                        : ''
-                    } ${
-                      loadingSessionId === session.id
-                        ? 'opacity-75 bg-blue-50 dark:bg-blue-900/20'
-                        : ''
                     }`}
                     onClick={() => {
-                      if (deletingSessionId !== session.id && loadingSessionId !== session.id) {
-                        window.location.href = `/conversation/${session.id}`;
-                      }
+                      window.location.href = `/chat/${session.id}`;
                     }}
                   >
                     <div className="flex-1 min-w-0 flex items-center space-x-2">
-                      {loadingSessionId === session.id && (
-                        <svg className="w-4 h-4 animate-spin text-blue-500" fill="none" viewBox="0 0 24 24">
-                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                        </svg>
-                      )}
                       <div className="flex-1">
                         <div className={`text-sm font-medium truncate ${
-                          sessionId === session.id 
+                          currentSessionId === session.id 
                             ? 'text-blue-900 dark:text-blue-100' 
                             : 'text-gray-900 dark:text-white'
                         }`}>
                           Chat {session.id.substring(0, 8)}
-                          {sessionId === session.id && (
+                          {currentSessionId === session.id && (
                             <span className="ml-2 text-xs bg-blue-100 dark:bg-blue-800 text-blue-800 dark:text-blue-100 px-2 py-0.5 rounded-full">
                               Active
                             </span>
@@ -571,24 +460,12 @@ export function ModernAgentChat({ agents, conversation, conversationId }: Modern
                         e.stopPropagation();
                         deleteSession(session.id);
                       }}
-                      disabled={deletingSessionId === session.id}
-                      className={`p-1 rounded hover:bg-gray-200 dark:hover:bg-gray-600 transition-all ${
-                        deletingSessionId === session.id
-                          ? 'opacity-100 text-red-500'
-                          : 'opacity-0 group-hover:opacity-100 text-gray-400'
-                      }`}
-                      title={deletingSessionId === session.id ? "Deleting..." : "Delete chat"}
+                      className="p-1 rounded hover:bg-gray-200 dark:hover:bg-gray-600 transition-all opacity-0 group-hover:opacity-100 text-gray-400"
+                      title="Delete chat"
                     >
-                      {deletingSessionId === session.id ? (
-                        <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
-                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                        </svg>
-                      ) : (
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                        </svg>
-                      )}
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                      </svg>
                     </button>
                   </div>
                 ))}
@@ -615,15 +492,15 @@ export function ModernAgentChat({ agents, conversation, conversationId }: Modern
               <h1 className="text-xl font-semibold text-gray-900 dark:text-white">
                 {currentAgentInfo?.name || 'AI Assistant'}
               </h1>
-              {sessionId && (
+              {currentSessionId && (
                 <p className="text-xs text-gray-500 dark:text-gray-400">
-                  Session: {sessionId.substring(0, 8)}... • {messages.length} messages
+                  Session: {currentSessionId.substring(0, 8)}... • {messages.length} messages
                 </p>
               )}
             </div>
           </div>
           <button
-            onClick={handleNewSession}
+            onClick={handleNewChat}
             className="px-3 py-1.5 text-sm bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded-lg hover:bg-blue-200 dark:hover:bg-blue-900/50 transition-colors flex items-center space-x-1"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -695,13 +572,13 @@ export function ModernAgentChat({ agents, conversation, conversationId }: Modern
                 type="text"
                 value={inputValue}
                 onChange={(e) => setInputValue(e.target.value)}
-                placeholder={sessionId ? "Message..." : "Initializing..."}
-                disabled={!sessionId || isLoading}
+                placeholder="Message..."
+                disabled={isLoading}
                 className="w-full px-4 py-3 pr-12 bg-gray-100 dark:bg-gray-800 border-0 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 transition-all"
               />
               <button
                 type="submit"
-                disabled={!sessionId || !inputValue.trim() || isLoading}
+                disabled={!inputValue.trim() || isLoading}
                 className="absolute right-2 top-1/2 transform -translate-y-1/2 p-2 rounded-xl bg-blue-500 text-white hover:bg-blue-600 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
               >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
