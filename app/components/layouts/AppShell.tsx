@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { NavLink, Outlet, useNavigation } from 'react-router';
+import { NavLink, Outlet, useNavigation, useLocation } from 'react-router';
 import { SignedIn, SignedOut, UserButton, SignInButton, useUser } from '@clerk/react-router';
 import * as Dialog from '@radix-ui/react-dialog';
 import {
@@ -25,7 +25,7 @@ interface NavItem {
 
 const navItems: NavItem[] = [
   { to: '/dashboard', label: 'Dashboard', icon: DashboardIcon },
-  { to: '/agent', label: 'AI Agent', icon: ChatBubbleIcon },
+  { to: '/chat', label: 'Chat', icon: ChatBubbleIcon },
   { to: '/briefs', label: 'Briefs', icon: FileTextIcon },
   { to: '/validations', label: 'Validations', icon: CheckCircledIcon },
   { to: '/history', label: 'History', icon: ClockIcon },
@@ -35,6 +35,7 @@ const navItems: NavItem[] = [
 export function AppShell({ children }: AppShellProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const navigation = useNavigation();
+  const location = useLocation();
   const { user, isLoaded } = useUser();
   const isNavigating = navigation.state === 'loading';
 
@@ -173,17 +174,8 @@ export function AppShell({ children }: AppShellProps) {
 
       {/* Main content */}
       <main className="flex-1">
-        <div className="mx-auto px-4 sm:px-6 lg:px-8 py-8">{children || <Outlet />}</div>
+        <>{children || <Outlet />}</>
       </main>
-
-      {/* Footer */}
-      <footer className="bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-800 mt-auto">
-        <div className="mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <p className="text-center text-sm text-gray-500 dark:text-gray-400">
-            © 2025 The Compass. All rights reserved.
-          </p>
-        </div>
-      </footer>
     </div>
   );
 }

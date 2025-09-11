@@ -1,37 +1,54 @@
 /**
- * Vertex AI Server Configuration Module
+ * Agent Engine Server Module
  *
  * This module provides server-side utilities for communicating with deployed
- * Vertex AI Reasoning Engines (Agent Engine).
+ * Vertex AI Agent Engines (Reasoning Engines) with session management.
  */
 
 // This library is needed to get an authentication token for API calls
 import { GoogleAuth } from 'google-auth-library';
+import type { AgentInfo } from '~/types';
 
 // Request type for querying a session
 export interface AgentQueryRequest {
   sessionId: string;
   prompt: string;
   userId?: string;
+  agentId?: string;
 }
 
-export class VertexAIService {
+// Agent configuration interface
+export interface AgentConfig {
+  id: string;
+  name: string;
+  description: string;
+  endpoint?: string;
+  projectId?: string;
+  location?: string;
+  capabilities: string[];
+}
+
+export class AgentEngineService {
   private projectId: string;
   private location: string;
-  private agentId: string;
+  private defaultAgentId: string;
   private auth: GoogleAuth;
   private initialized: boolean = false;
+  private agents: Map<string, AgentConfig> = new Map();
 
   constructor() {
     this.projectId = process.env.GOOGLE_CLOUD_PROJECT_ID || '';
     this.location = process.env.GOOGLE_CLOUD_REGION || 'us-central1';
-    this.agentId = process.env.VERTEX_AGENT_ID || '';
+    this.defaultAgentId = process.env.VERTEX_AGENT_ID || '';
 
-    if (!this.projectId || !this.agentId) {
+    if (!this.projectId || !this.defaultAgentId) {
       throw new Error(
         'Both GOOGLE_CLOUD_PROJECT_ID and VERTEX_AGENT_ID environment variables are required.'
       );
     }
+
+    // Initialize agent configurations
+    this.initializeAgents();
 
     // Initialize Google Auth
     try {
@@ -59,7 +76,75 @@ export class VertexAIService {
     }
 
     this.initialized = true;
-    console.log('VertexAIService (Agent Engine) initialized successfully.');
+    console.log('AgentEngineService initialized successfully.');
+    console.log(`Registered ${this.agents.size} agents`);
+  }
+
+  /**
+   * Initialize agent configurations
+   */
+  private initializeAgents(): void {
+    // Demo agent (default)
+    this.agents.set('demo-agent', {
+      id: this.defaultAgentId,
+      name: 'Demo Agent',
+      description: 'Demo health check agent for testing',
+      endpoint: process.env.VERTEX_AGENT_ENDPOINT,
+      projectId: this.projectId,
+      location: this.location,
+      capabilities: ['health-check', 'basic-query'],
+    });
+
+    // Enterprise Admin agent
+    if (process.env.VERTEX_ENTERPRISE_ADMIN_AGENT_ID) {
+      this.agents.set('enterprise-admin', {
+        id: process.env.VERTEX_ENTERPRISE_ADMIN_AGENT_ID,
+        name: 'Enterprise Admin',
+        description: 'Enterprise IT Administrator persona for user interviews',
+        endpoint: process.env.VERTEX_ENTERPRISE_ADMIN_ENDPOINT,
+        projectId: this.projectId,
+        location: this.location,
+        capabilities: ['persona-simulation', 'interview', 'enterprise-context'],
+      });
+    }
+
+    // Add more agents as needed
+    // Future agents can be added here following the same pattern
+  }
+
+  /**
+   * Get list of available agents
+   */
+  async getAvailableAgents(): Promise<AgentInfo[]> {
+    const agents: AgentInfo[] = [];
+
+    for (const [key, config] of this.agents.entries()) {
+      agents.push({
+        id: key,
+        name: config.name,
+        description: config.description,
+        status: config.endpoint ? 'active' : 'inactive',
+        endpoint: config.endpoint,
+        capabilities: config.capabilities,
+      });
+    }
+
+    return agents;
+  }
+
+  /**
+   * Get agent configuration by ID
+   */
+  private getAgentConfig(agentId?: string): AgentConfig {
+    const id = agentId || 'demo-agent';
+    const config = this.agents.get(id);
+
+    if (!config) {
+      console.warn(`Agent ${id} not found, falling back to demo-agent`);
+      return this.agents.get('demo-agent')!;
+    }
+
+    return config;
   }
 
   /**
@@ -78,14 +163,20 @@ export class VertexAIService {
    * Creates a session for the deployed Agent Engine.
    * For Agent Engines with AdkApp, we need to create remote sessions.
    */
-  async createAgentSession(userId: string = 'default_user'): Promise<{ sessionId: string }> {
+  async createSession(
+    userId: string = 'default_user',
+    agentId?: string
+  ): Promise<{ sessionId: string }> {
     if (!this.initialized) {
-      throw new Error('Vertex AI service not initialized');
+      throw new Error('Agent Engine service not initialized');
     }
+
+    // Get agent configuration
+    const agentConfig = this.getAgentConfig(agentId);
 
     // For Agent Engines with AdkApp, create a remote session using create_session method
     try {
-      const apiUrl = `${process.env.VERTEX_AGENT_ENDPOINT}`;
+      const apiUrl = agentConfig.endpoint || process.env.VERTEX_AGENT_ENDPOINT;
       const token = await this.getAccessToken();
 
       const createSessionPayload = {
@@ -139,7 +230,7 @@ export class VertexAIService {
         console.warn('Could not extract session ID from response, using client-generated ID');
       }
 
-      console.log(`Created Agent Engine session: ${sessionId}`);
+      console.log(`Created Agent Engine session for ${agentConfig.name}: ${sessionId}`);
       return { sessionId };
     } catch (error) {
       console.error('Failed to create Agent Engine session:', error);
@@ -151,23 +242,212 @@ export class VertexAIService {
   }
 
   /**
+   * List all sessions for a user and optionally filter by agent
+   */
+  async listSessions(
+    userId: string,
+    agentId?: string
+  ): Promise<{ sessions: Array<{ sessionId: string; agentId: string; createdAt: string }> }> {
+    if (!this.initialized) {
+      throw new Error('Agent Engine service not initialized');
+    }
+
+    const agentConfig = this.getAgentConfig(agentId);
+
+    try {
+      const apiUrl = agentConfig.endpoint || process.env.VERTEX_AGENT_ENDPOINT;
+      const token = await this.getAccessToken();
+
+      const listSessionsPayload = {
+        class_method: 'async_list_sessions',
+        input: {
+          user_id: userId,
+        },
+      };
+
+      console.log('Listing sessions with payload:', JSON.stringify(listSessionsPayload, null, 2));
+
+      const response = await fetch(`${apiUrl}:query`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(listSessionsPayload),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error(`Failed to list sessions: ${response.status}: ${errorText}`);
+        // Return empty list on error instead of throwing
+        return { sessions: [] };
+      }
+
+      const result = await response.json();
+      console.log('List sessions response:', JSON.stringify(result, null, 2));
+
+      // Extract sessions from response
+      let sessions = [];
+      if (result.output && Array.isArray(result.output)) {
+        sessions = result.output;
+      } else if (result.output && result.output.sessions) {
+        sessions = result.output.sessions;
+      } else if (result.sessions) {
+        sessions = result.sessions;
+      }
+
+      return { sessions };
+    } catch (error) {
+      console.error('Failed to list sessions:', error);
+      // Return empty list on error
+      return { sessions: [] };
+    }
+  }
+
+  /**
+   * Get details of a specific session
+   */
+  async getSession(
+    sessionId: string,
+    userId: string,
+    agentId?: string
+  ): Promise<{ session: any | null }> {
+    if (!this.initialized) {
+      throw new Error('Agent Engine service not initialized');
+    }
+
+    const agentConfig = this.getAgentConfig(agentId);
+
+    try {
+      const apiUrl = agentConfig.endpoint || process.env.VERTEX_AGENT_ENDPOINT;
+      const token = await this.getAccessToken();
+
+      const getSessionPayload = {
+        class_method: 'async_get_session',
+        input: {
+          session_id: sessionId,
+          user_id: userId,
+        },
+      };
+
+      console.log('Getting session with payload:', JSON.stringify(getSessionPayload, null, 2));
+
+      const response = await fetch(`${apiUrl}:query`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(getSessionPayload),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error(`Failed to get session: ${response.status}: ${errorText}`);
+        return { session: null };
+      }
+
+      const result = await response.json();
+      console.log('Get session response:', JSON.stringify(result, null, 2));
+
+      // Extract session from response
+      let session = null;
+      if (result.output) {
+        session = result.output;
+      } else if (result.session) {
+        session = result.session;
+      }
+
+      return { session };
+    } catch (error) {
+      console.error('Failed to get session:', error);
+      return { session: null };
+    }
+  }
+
+  /**
+   * Delete a session
+   */
+  async deleteSession(
+    sessionId: string,
+    userId: string,
+    agentId?: string
+  ): Promise<{ success: boolean; message?: string }> {
+    if (!this.initialized) {
+      throw new Error('Agent Engine service not initialized');
+    }
+
+    const agentConfig = this.getAgentConfig(agentId);
+
+    try {
+      const apiUrl = agentConfig.endpoint || process.env.VERTEX_AGENT_ENDPOINT;
+      const token = await this.getAccessToken();
+
+      const deleteSessionPayload = {
+        class_method: 'async_delete_session',
+        input: {
+          session_id: sessionId,
+          user_id: userId,
+        },
+      };
+
+      console.log('Deleting session with payload:', JSON.stringify(deleteSessionPayload, null, 2));
+
+      const response = await fetch(`${apiUrl}:query`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(deleteSessionPayload),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error(`Failed to delete session: ${response.status}: ${errorText}`);
+        return { success: false, message: `Failed to delete session: ${response.status}` };
+      }
+
+      const result = await response.json();
+      console.log('Delete session response:', JSON.stringify(result, null, 2));
+
+      // Check if deletion was successful
+      const success = result.output?.success || result.success || true;
+      const message = result.output?.message || result.message || 'Session deleted successfully';
+
+      return { success, message };
+    } catch (error) {
+      console.error('Failed to delete session:', error);
+      return { 
+        success: false, 
+        message: error instanceof Error ? error.message : 'Unknown error occurred' 
+      };
+    }
+  }
+
+  /**
    * Queries the deployed Reasoning Engine through the session.
    * Since the agent doesn't have direct query methods, we'll use the session approach.
    */
   async streamQuery(request: AgentQueryRequest): Promise<any> {
     if (!this.initialized) {
-      throw new Error('Vertex AI service not initialized');
+      throw new Error('Agent Engine service not initialized');
     }
+
+    // Get agent configuration
+    const agentConfig = this.getAgentConfig(request.agentId);
 
     // Use the streaming endpoint with ADK format
     // ADK agents use async_stream_query for streaming responses
     let apiUrl = '';
-    if (process.env.VERTEX_AGENT_ENDPOINT) {
+    if (agentConfig.endpoint) {
+      apiUrl = `${agentConfig.endpoint}:streamQuery?alt=sse`;
+    } else if (process.env.VERTEX_AGENT_ENDPOINT) {
       apiUrl = `${process.env.VERTEX_AGENT_ENDPOINT}:streamQuery?alt=sse`;
     } else {
-      apiUrl = `https://${this.location}-aiplatform.googleapis.com/v1/projects/${this.projectId}/locations/${this.location}/reasoningEngines/${this.agentId}:streamQuery?alt=sse`;
+      apiUrl = `https://${this.location}-aiplatform.googleapis.com/v1/projects/${this.projectId}/locations/${this.location}/reasoningEngines/${agentConfig.id}:streamQuery?alt=sse`;
     }
-    
+
     console.log('Using streaming endpoint:', apiUrl);
 
     try {
@@ -183,9 +463,10 @@ export class VertexAIService {
         },
       };
 
-      console.log(`Querying Agent Engine with:
+      console.log(`Querying ${agentConfig.name} with:
   - userId: ${request.userId}
   - sessionId: ${request.sessionId}
+  - agentId: ${agentConfig.id}
   - prompt: ${request.prompt}
       `);
       console.log(`Full payload:`, JSON.stringify(requestPayload, null, 2));
@@ -232,12 +513,12 @@ export class VertexAIService {
       // If response is JSON instead of SSE, handle it differently
       if (contentType.includes('application/json')) {
         console.log('Received JSON response instead of SSE, parsing as JSON...');
-        
+
         try {
           const responseText = await response.text();
           console.log('Raw response text length:', responseText.length);
           console.log('First 1500 chars of raw response:', responseText.substring(0, 1500));
-          
+
           if (!responseText || responseText.trim() === '') {
             console.error('Empty response body received');
             return {
@@ -245,22 +526,22 @@ export class VertexAIService {
               sessionId: request.sessionId,
             };
           }
-          
+
           // Check if response contains multiple JSON objects (common with streaming)
           // Try to extract just the first complete JSON object
           let jsonResponse;
-          
+
           // First, try to parse as-is
           try {
             jsonResponse = JSON.parse(responseText);
           } catch (firstError) {
             console.log('Direct parse failed, checking for multiple JSON objects...');
-            
+
             // If direct parse fails, it might be multiple JSON objects
             // Try to find the first complete JSON object
             const lines = responseText.split('\n');
             let parsedSuccessfully = false;
-            
+
             for (const line of lines) {
               if (line.trim()) {
                 try {
@@ -270,10 +551,11 @@ export class VertexAIService {
                   break;
                 } catch (lineError) {
                   // Continue to next line
+                  console.log(lineError);
                 }
               }
             }
-            
+
             if (!parsedSuccessfully) {
               // Try to extract up to the first complete JSON object
               // Look for a pattern that ends a JSON object
@@ -291,25 +573,30 @@ export class VertexAIService {
               }
             }
           }
-          
-          console.log('Parsed JSON response:', JSON.stringify(jsonResponse, null, 2).substring(0, 500));
-          
+
+          console.log(
+            'Parsed JSON response:',
+            JSON.stringify(jsonResponse, null, 2).substring(0, 500)
+          );
+
           // Extract response from JSON format
           let extractedResponse = '';
           if (typeof jsonResponse === 'string') {
             extractedResponse = jsonResponse;
           } else if (jsonResponse.output) {
-            extractedResponse = typeof jsonResponse.output === 'string' 
-              ? jsonResponse.output 
-              : JSON.stringify(jsonResponse.output);
+            extractedResponse =
+              typeof jsonResponse.output === 'string'
+                ? jsonResponse.output
+                : JSON.stringify(jsonResponse.output);
           } else if (jsonResponse.response) {
-            extractedResponse = typeof jsonResponse.response === 'string'
-              ? jsonResponse.response
-              : JSON.stringify(jsonResponse.response);
+            extractedResponse =
+              typeof jsonResponse.response === 'string'
+                ? jsonResponse.response
+                : JSON.stringify(jsonResponse.response);
           } else {
             extractedResponse = JSON.stringify(jsonResponse);
           }
-          
+
           return {
             response: extractedResponse || 'No response in JSON',
             sessionId: request.sessionId,
@@ -340,7 +627,7 @@ export class VertexAIService {
       try {
         console.log('Starting to read SSE stream...');
         let chunkCount = 0;
-        
+
         while (true) {
           const { done, value } = await reader.read();
 
@@ -353,12 +640,14 @@ export class VertexAIService {
           chunkCount++;
           const chunkSize = value ? value.length : 0;
           totalBytesRead += chunkSize;
-          
+
           // Decode the chunk and add to buffer
           const decodedChunk = decoder.decode(value, { stream: true });
           buffer += decodedChunk;
-          
-          console.log(`Chunk ${chunkCount}: ${chunkSize} bytes, Total read: ${totalBytesRead} bytes`);
+
+          console.log(
+            `Chunk ${chunkCount}: ${chunkSize} bytes, Total read: ${totalBytesRead} bytes`
+          );
           console.log(`Decoded chunk content:`, decodedChunk.substring(0, 500));
 
           // In development, log raw buffer chunks for debugging
@@ -409,7 +698,11 @@ export class VertexAIService {
                       finalResponse += eventData;
                     }
                     // Check if this is the ADK agent response format with content.parts
-                    else if (eventData.content && eventData.content.parts && Array.isArray(eventData.content.parts)) {
+                    else if (
+                      eventData.content &&
+                      eventData.content.parts &&
+                      Array.isArray(eventData.content.parts)
+                    ) {
                       console.log('Found ADK content.parts structure');
                       for (const part of eventData.content.parts) {
                         if (part.text) {
@@ -622,11 +915,17 @@ export class VertexAIService {
 }
 
 // Export a singleton instance
-let vertexAIInstance: VertexAIService | null = null;
+let agentEngineInstance: AgentEngineService | null = null;
 
-export function getVertexAIService(): VertexAIService {
-  if (!vertexAIInstance) {
-    vertexAIInstance = new VertexAIService();
+export function getAgentEngineService(): AgentEngineService {
+  if (!agentEngineInstance) {
+    agentEngineInstance = new AgentEngineService();
   }
-  return vertexAIInstance;
+  return agentEngineInstance;
+}
+
+// Backward compatibility export (deprecated)
+export function getVertexAIService(): AgentEngineService {
+  console.warn('getVertexAIService is deprecated. Use getAgentEngineService instead.');
+  return getAgentEngineService();
 }
