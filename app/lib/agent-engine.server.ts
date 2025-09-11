@@ -7,7 +7,11 @@
 
 // This library is needed to get an authentication token for API calls
 import { GoogleAuth } from 'google-auth-library';
-import type { AgentInfo } from '~/types';
+import type { AgentInfo, AgentListResponse, AgentListCache } from '~/types';
+import { AgentStatus } from '~/types';
+import { validateAgentMetadata, type AgentMetadataConfig } from './agent-metadata-validator';
+import * as fs from 'fs';
+import * as path from 'path';
 
 // Request type for querying a session
 export interface AgentQueryRequest {
@@ -34,7 +38,9 @@ export class AgentEngineService {
   private defaultAgentId: string;
   private auth: GoogleAuth;
   private initialized: boolean = false;
-  private agents: Map<string, AgentConfig> = new Map();
+  private agents: Map<string, AgentInfo> = new Map();
+  private agentCache: AgentListCache | null = null;
+  private metadataConfig: AgentMetadataConfig | null = null;
 
   constructor() {
     this.projectId = process.env.GOOGLE_CLOUD_PROJECT_ID || '';
@@ -47,8 +53,8 @@ export class AgentEngineService {
       );
     }
 
-    // Initialize agent configurations
-    this.initializeAgents();
+    // Load agent metadata configuration
+    this.loadAgentMetadata();
 
     // Initialize Google Auth
     try {
@@ -81,61 +87,426 @@ export class AgentEngineService {
   }
 
   /**
-   * Initialize agent configurations
+   * Load agent metadata configuration from file
    */
-  private initializeAgents(): void {
-    // Demo agent (default)
-    this.agents.set('demo-agent', {
-      id: this.defaultAgentId,
-      name: 'Demo Agent',
-      description: 'Demo health check agent for testing',
-      endpoint: process.env.VERTEX_AGENT_ENDPOINT,
-      projectId: this.projectId,
-      location: this.location,
-      capabilities: ['health-check', 'basic-query'],
-    });
-
-    // Enterprise Admin agent
-    if (process.env.VERTEX_ENTERPRISE_ADMIN_AGENT_ID) {
-      this.agents.set('enterprise-admin', {
-        id: process.env.VERTEX_ENTERPRISE_ADMIN_AGENT_ID,
-        name: 'Enterprise Admin',
-        description: 'Enterprise IT Administrator persona for user interviews',
-        endpoint: process.env.VERTEX_ENTERPRISE_ADMIN_ENDPOINT,
-        projectId: this.projectId,
-        location: this.location,
-        capabilities: ['persona-simulation', 'interview', 'enterprise-context'],
-      });
+  private loadAgentMetadata(): void {
+    try {
+      const metadataPath = path.join(process.cwd(), 'app', 'config', 'agent-metadata.json');
+      if (fs.existsSync(metadataPath)) {
+        const metadataContent = fs.readFileSync(metadataPath, 'utf-8');
+        const rawConfig = JSON.parse(metadataContent);
+        this.metadataConfig = validateAgentMetadata(rawConfig);
+        console.log(`Loaded metadata for ${Object.keys(this.metadataConfig.agents).length} agents`);
+      } else {
+        console.warn('Agent metadata configuration not found, using defaults');
+        this.metadataConfig = {
+          agents: {},
+          defaults: {
+            fallbackName: 'Vertex AI Agent',
+            fallbackDescription: 'An AI agent deployed in Vertex AI Agent Engine',
+            fallbackCapabilities: ['general-purpose'],
+          },
+        };
+      }
+    } catch (error) {
+      console.error('Failed to load agent metadata:', error);
+      this.metadataConfig = {
+        agents: {},
+        defaults: {
+          fallbackName: 'Vertex AI Agent',
+          fallbackDescription: 'An AI agent deployed in Vertex AI Agent Engine',
+          fallbackCapabilities: ['general-purpose'],
+        },
+      };
     }
-
-    // Add more agents as needed
-    // Future agents can be added here following the same pattern
   }
 
   /**
-   * Get list of available agents
+   * Discover agents dynamically from Vertex AI Agent Engine
    */
-  async getAvailableAgents(): Promise<AgentInfo[]> {
-    const agents: AgentInfo[] = [];
+  private async discoverAgentsFromVertexAI(): Promise<AgentConfig[]> {
+    try {
+      const token = await this.getAccessToken();
 
-    for (const [key, config] of this.agents.entries()) {
-      agents.push({
-        id: key,
-        name: config.name,
-        description: config.description,
-        status: config.endpoint ? 'active' : 'inactive',
-        endpoint: config.endpoint,
-        capabilities: config.capabilities,
+      // Use Vertex AI Agent Engine API to list deployed agents
+      const listUrl = `https://${this.location}-aiplatform.googleapis.com/v1/projects/${this.projectId}/locations/${this.location}/reasoningEngines`;
+
+      const response = await fetch(listUrl, {
+        method: 'GET',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        console.error(`Failed to list agents from Vertex AI: ${response.status}`);
+        return this.getFallbackAgents();
+      }
+
+      const data = await response.json();
+      console.log('agents', data)
+      const agents: AgentConfig[] = [];
+
+      if (data.reasoningEngines && Array.isArray(data.reasoningEngines)) {
+        for (const engine of data.reasoningEngines) {
+          // Extract agent ID from the name (format: projects/{project}/locations/{location}/reasoningEngines/{id})
+          const nameParts = engine.name?.split('/') || [];
+          const agentId = nameParts[nameParts.length - 1];
+
+          if (agentId) {
+            agents.push({
+              id: agentId,
+              name: engine.displayName || `Agent ${agentId}`,
+              description: engine.description || 'Vertex AI Reasoning Engine',
+              projectId: this.projectId,
+              location: this.location,
+              capabilities: ['reasoning', 'query'],
+              endpoint: this.constructAgentEndpoint(agentId),
+            });
+          }
+        }
+      }
+
+      return agents.length > 0 ? agents : this.getFallbackAgents();
+    } catch (error) {
+      console.error('Error discovering agents from Vertex AI:', error);
+      return this.getFallbackAgents();
+    }
+  }
+
+  /**
+   * Get fallback agents when Vertex AI discovery fails
+   */
+  private getFallbackAgents(): AgentConfig[] {
+    const fallbackAgents: AgentConfig[] = [];
+
+    // Include default agent if configured
+    if (this.defaultAgentId) {
+      fallbackAgents.push({
+        id: this.defaultAgentId,
+        name: 'Demo Agent',
+        description: 'Demo health check agent for testing',
+        endpoint: process.env.VERTEX_AGENT_ENDPOINT,
+        projectId: this.projectId,
+        location: this.location,
+        capabilities: ['health-check', 'basic-query'],
       });
     }
 
-    return agents;
+    return fallbackAgents;
+  }
+
+  /**
+   * Construct agent endpoint URL
+   */
+  private constructAgentEndpoint(agentId: string): string {
+    return `https://${this.location}-aiplatform.googleapis.com/v1/projects/${this.projectId}/locations/${this.location}/reasoningEngines/${agentId}`;
+  }
+
+  /**
+   * Merge Vertex AI agents with metadata configuration
+   */
+  private mergeAgentsWithMetadata(vertexAgents: AgentConfig[]): AgentInfo[] {
+    const mergedAgents: AgentInfo[] = [];
+    const processedIds = new Set<string>();
+
+    // Process agents from Vertex AI first
+    for (const vertexAgent of vertexAgents) {
+      const metadata = this.metadataConfig?.agents[vertexAgent.id];
+      const defaults = this.metadataConfig?.defaults;
+
+      const agentInfo: AgentInfo = {
+        id: vertexAgent.id,
+        name: metadata?.name || vertexAgent.name || defaults?.fallbackName || 'Unnamed Agent',
+        description:
+          metadata?.description ||
+          vertexAgent.description ||
+          defaults?.fallbackDescription ||
+          'AI Agent',
+        status: AgentStatus.ACTIVE, // Will be validated by health check
+        capabilities: metadata?.capabilities ||
+          vertexAgent.capabilities ||
+          defaults?.fallbackCapabilities || ['general'],
+        endpoint: vertexAgent.endpoint,
+        projectId: vertexAgent.projectId,
+        location: vertexAgent.location,
+        lastUpdated: new Date(),
+        metadata: {
+          category: metadata?.category || 'general',
+          priority: metadata?.priority || 999,
+          icon: metadata?.icon,
+          enabled: metadata?.enabled !== false,
+          ...metadata,
+        },
+      };
+
+      if (agentInfo.metadata?.enabled !== false) {
+        mergedAgents.push(agentInfo);
+        processedIds.add(vertexAgent.id);
+      }
+    }
+
+    // Add metadata-only agents that weren't found in Vertex AI
+    if (this.metadataConfig?.agents) {
+      for (const [agentId, metadata] of Object.entries(this.metadataConfig.agents)) {
+        if (!processedIds.has(agentId) && metadata.enabled !== false) {
+          const agentInfo: AgentInfo = {
+            id: agentId,
+            name: metadata.name,
+            description: metadata.description,
+            status: AgentStatus.INACTIVE, // Not deployed in Vertex AI
+            capabilities: metadata.capabilities,
+            endpoint: this.constructAgentEndpoint(agentId),
+            projectId: this.projectId,
+            location: this.location,
+            lastUpdated: new Date(),
+            metadata: {
+              category: metadata.category || 'general',
+              priority: metadata.priority || 999,
+              icon: metadata.icon,
+              ...metadata,
+              enabled: metadata.enabled !== false,
+            },
+          };
+
+          mergedAgents.push(agentInfo);
+        }
+      }
+    }
+
+    // Sort by priority (lower numbers first)
+    mergedAgents.sort((a, b) => {
+      const priorityA = a.metadata?.priority || 999;
+      const priorityB = b.metadata?.priority || 999;
+      return priorityA - priorityB;
+    });
+
+    return mergedAgents;
+  }
+
+  /**
+   * Perform health check on agents
+   */
+  private async healthCheckAgents(agents: AgentInfo[]): Promise<AgentInfo[]> {
+    const healthCheckedAgents = [...agents];
+
+    for (let i = 0; i < healthCheckedAgents.length; i++) {
+      const agent = healthCheckedAgents[i];
+
+      if (agent.endpoint) {
+        try {
+          // Perform lightweight health check
+          const token = await this.getAccessToken();
+          const healthCheckPayload = {
+            class_method: 'health_check',
+            input: {},
+          };
+
+          const response = await fetch(`${agent.endpoint}:query`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify(healthCheckPayload),
+          });
+
+          healthCheckedAgents[i] = {
+            ...agent,
+            status: response.ok ? AgentStatus.ACTIVE : AgentStatus.ERROR,
+            lastUpdated: new Date(),
+          };
+        } catch (error) {
+          console.warn(`Health check failed for agent ${agent.id}:`, error);
+          healthCheckedAgents[i] = {
+            ...agent,
+            status: AgentStatus.ERROR,
+            lastUpdated: new Date(),
+          };
+        }
+      }
+    }
+
+    return healthCheckedAgents;
+  }
+
+  /**
+   * Check if cache is valid
+   */
+  private isCacheValid(): boolean {
+    if (!this.agentCache) return false;
+
+    const now = Date.now();
+    const cacheAge = now - this.agentCache.timestamp.getTime();
+    const ttlMs = this.agentCache.ttl * 1000;
+
+    return cacheAge < ttlMs;
+  }
+
+  /**
+   * Update agent cache
+   */
+  private updateCache(agents: AgentInfo[]): void {
+    const hash = this.generateCacheHash(agents);
+    this.agentCache = {
+      data: agents,
+      timestamp: new Date(),
+      ttl: 300, // 5 minutes
+      hash,
+    };
+  }
+
+  /**
+   * Generate cache hash for invalidation
+   */
+  private generateCacheHash(agents: AgentInfo[]): string {
+    const dataString = JSON.stringify(
+      agents.map((a) => ({ id: a.id, name: a.name, status: a.status }))
+    );
+    // Simple hash function
+    let hash = 0;
+    for (let i = 0; i < dataString.length; i++) {
+      const char = dataString.charCodeAt(i);
+      hash = (hash << 5) - hash + char;
+      hash = hash & hash; // Convert to 32-bit integer
+    }
+    return hash.toString(16);
+  }
+
+  /**
+   * Get list of available agents with dynamic discovery
+   */
+  async getAvailableAgents(forceRefresh: boolean = false): Promise<AgentListResponse> {
+    // Return cached data if valid and not forcing refresh
+    if (!forceRefresh && this.isCacheValid() && this.agentCache) {
+      return {
+        agents: this.agentCache.data,
+        timestamp: this.agentCache.timestamp,
+        cached: true,
+        totalCount: this.agentCache.data.length,
+      };
+    }
+
+    try {
+      console.log('Discovering agents dynamically...');
+
+      // Step 1: Discover agents from Vertex AI
+      const vertexAgents = await this.discoverAgentsFromVertexAI();
+      console.log(`Discovered ${vertexAgents.length} agents from Vertex AI`);
+
+      // Step 2: Merge with metadata configuration
+      const mergedAgents = this.mergeAgentsWithMetadata(vertexAgents);
+      console.log(`Merged ${mergedAgents.length} agents with metadata`);
+
+      // Step 3: Perform health checks (in parallel for better performance)
+      const healthCheckedAgents = await this.healthCheckAgents(mergedAgents);
+      console.log(`Health checked ${healthCheckedAgents.length} agents`);
+
+      // Step 4: Store agents in the agents map for retrieval
+      this.agents.clear();
+      for (const agent of healthCheckedAgents) {
+        this.agents.set(agent.id, agent);
+      }
+
+      // Step 5: Update cache
+      this.updateCache(healthCheckedAgents);
+
+      return {
+        agents: healthCheckedAgents,
+        timestamp: new Date(),
+        cached: false,
+        totalCount: healthCheckedAgents.length,
+      };
+    } catch (error) {
+      console.error('Failed to get available agents:', error);
+
+      // Fallback to cached data if available
+      if (this.agentCache) {
+        console.log('Falling back to cached data');
+        return {
+          agents: this.agentCache.data,
+          timestamp: this.agentCache.timestamp,
+          cached: true,
+          totalCount: this.agentCache.data.length,
+        };
+      }
+
+      // Final fallback - return metadata-only agents
+      const fallbackAgents = this.metadataConfig?.agents
+        ? Object.entries(this.metadataConfig.agents)
+            .filter(([_, metadata]) => metadata.enabled !== false)
+            .map(([agentId, metadata]) => ({
+              id: agentId,
+              name: metadata.name,
+              description: metadata.description,
+              status: AgentStatus.INACTIVE,
+              capabilities: metadata.capabilities,
+              lastUpdated: new Date(),
+              metadata: {
+                category: metadata.category || 'general',
+                priority: metadata.priority || 999,
+                icon: metadata.icon,
+                enabled: metadata.enabled !== false,
+              },
+            }))
+        : [];
+
+      return {
+        agents: fallbackAgents,
+        timestamp: new Date(),
+        cached: false,
+        totalCount: fallbackAgents.length,
+      };
+    }
+  }
+
+  /**
+   * Get specific agent by ID
+   */
+  async getAgentById(agentId: string): Promise<AgentInfo | null> {
+    const agentList = await this.getAvailableAgents();
+    return agentList.agents.find((agent) => agent.id === agentId) || null;
+  }
+
+  /**
+   * Refresh agent cache
+   */
+  async refreshAgents(): Promise<{
+    success: boolean;
+    totalAgents: number;
+    newAgents: number;
+    timestamp: Date;
+    cached: boolean;
+  }> {
+    try {
+      const previousCount = this.agentCache?.data.length || 0;
+      const refreshedList = await this.getAvailableAgents(true);
+      const newCount = refreshedList.totalCount;
+
+      return {
+        success: true,
+        totalAgents: newCount,
+        newAgents: Math.max(0, newCount - previousCount),
+        timestamp: new Date(),
+        cached: false,
+      };
+    } catch (error) {
+      console.error('Failed to refresh agents:', error);
+      return {
+        success: false,
+        totalAgents: 0,
+        newAgents: 0,
+        timestamp: new Date(),
+        cached: false,
+      };
+    }
   }
 
   /**
    * Get agent configuration by ID
    */
-  private getAgentConfig(agentId?: string): AgentConfig {
+  private getAgentConfig(agentId?: string): AgentInfo {
     const id = agentId || 'demo-agent';
     const config = this.agents.get(id);
 
@@ -418,9 +789,9 @@ export class AgentEngineService {
       return { success, message };
     } catch (error) {
       console.error('Failed to delete session:', error);
-      return { 
-        success: false, 
-        message: error instanceof Error ? error.message : 'Unknown error occurred' 
+      return {
+        success: false,
+        message: error instanceof Error ? error.message : 'Unknown error occurred',
       };
     }
   }

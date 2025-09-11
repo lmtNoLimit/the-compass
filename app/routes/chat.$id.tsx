@@ -1,9 +1,8 @@
-// import type { Route } from '../+types/conversation.$id';
 import { ModernAgentChat } from '../components/features/ModernAgentChat';
 
 export async function clientLoader({ params }: any): Promise<any> {
   // Fetch agents
-  const agentsResponse = await fetch('/api/chat');
+  const agentsResponse = await fetch('/api/agents');
   if (!agentsResponse.ok) {
     throw new Error('Failed to fetch agents');
   }

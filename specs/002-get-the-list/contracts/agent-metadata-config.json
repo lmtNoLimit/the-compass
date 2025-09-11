@@ -1,0 +1,119 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Agent Metadata Configuration",
+  "description": "Configuration file mapping agent IDs to their metadata",
+  "type": "object",
+  "properties": {
+    "agents": {
+      "type": "object",
+      "description": "Map of agent IDs to their metadata",
+      "additionalProperties": {
+        "$ref": "#/definitions/AgentMetadata"
+      }
+    },
+    "defaults": {
+      "$ref": "#/definitions/DefaultSettings"
+    }
+  },
+  "required": ["agents"],
+  "definitions": {
+    "AgentMetadata": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Display name of the agent",
+          "minLength": 1,
+          "maxLength": 100
+        },
+        "description": {
+          "type": "string",
+          "description": "Detailed description of agent capabilities",
+          "minLength": 10,
+          "maxLength": 500
+        },
+        "capabilities": {
+          "type": "array",
+          "description": "List of agent capabilities",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 50
+          },
+          "minItems": 0,
+          "maxItems": 20
+        },
+        "icon": {
+          "type": "string",
+          "description": "Icon identifier or URL for the agent"
+        },
+        "category": {
+          "type": "string",
+          "description": "Agent category for grouping",
+          "enum": ["general", "specialized", "enterprise", "demo", "experimental"]
+        },
+        "priority": {
+          "type": "integer",
+          "description": "Display priority (lower numbers appear first)",
+          "minimum": 0,
+          "maximum": 999
+        },
+        "enabled": {
+          "type": "boolean",
+          "description": "Whether the agent should be shown even if deployed",
+          "default": true
+        }
+      },
+      "required": ["name", "description", "capabilities"]
+    },
+    "DefaultSettings": {
+      "type": "object",
+      "properties": {
+        "fallbackName": {
+          "type": "string",
+          "description": "Default name for agents without metadata",
+          "default": "Unnamed Agent"
+        },
+        "fallbackDescription": {
+          "type": "string",
+          "description": "Default description for agents without metadata",
+          "default": "AI Agent deployed in Vertex AI"
+        },
+        "fallbackCapabilities": {
+          "type": "array",
+          "description": "Default capabilities for agents without metadata",
+          "items": {
+            "type": "string"
+          },
+          "default": ["general"]
+        }
+      }
+    }
+  },
+  "examples": [
+    {
+      "agents": {
+        "demo-agent-123": {
+          "name": "Demo Agent",
+          "description": "Demo health check agent for testing",
+          "capabilities": ["health-check", "basic-query"],
+          "category": "demo",
+          "priority": 100
+        },
+        "enterprise-admin-456": {
+          "name": "Enterprise Admin",
+          "description": "Enterprise IT Administrator persona for user interviews",
+          "capabilities": ["persona-simulation", "interview", "enterprise-context"],
+          "category": "enterprise",
+          "priority": 10,
+          "icon": "briefcase"
+        }
+      },
+      "defaults": {
+        "fallbackName": "Vertex AI Agent",
+        "fallbackDescription": "An AI agent deployed in Vertex AI Agent Engine",
+        "fallbackCapabilities": ["general-purpose"]
+      }
+    }
+  ]
+}
