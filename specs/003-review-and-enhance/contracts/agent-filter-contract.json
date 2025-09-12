@@ -1,0 +1,148 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Agent Filter Contract",
+  "description": "Contract for filtering agents to exclude demo/test agents",
+  "type": "object",
+  "required": ["filters", "validation"],
+  "properties": {
+    "filters": {
+      "type": "object",
+      "required": ["excludeCategories", "excludePatterns", "requireHealthCheck", "productionOnly"],
+      "properties": {
+        "excludeCategories": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": ["demo", "test"],
+          "description": "Categories to exclude from agent list"
+        },
+        "excludePatterns": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "format": "regex"
+          },
+          "default": [
+            "demo.*",
+            "test.*",
+            "mock.*",
+            "fake.*",
+            "dummy.*"
+          ],
+          "description": "ID patterns to exclude"
+        },
+        "requireHealthCheck": {
+          "type": "boolean",
+          "default": true,
+          "description": "Only show agents that pass health check"
+        },
+        "productionOnly": {
+          "type": "boolean",
+          "default": true,
+          "description": "Only show production agents"
+        }
+      }
+    },
+    "validation": {
+      "type": "object",
+      "required": ["rules"],
+      "properties": {
+        "rules": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["name", "condition", "action"],
+            "properties": {
+              "name": {
+                "type": "string",
+                "description": "Rule name"
+              },
+              "condition": {
+                "type": "string",
+                "description": "Condition to check"
+              },
+              "action": {
+                "type": "string",
+                "enum": ["exclude", "include", "warn"],
+                "description": "Action to take"
+              }
+            }
+          },
+          "default": [
+            {
+              "name": "exclude-demo-category",
+              "condition": "metadata.category === 'demo'",
+              "action": "exclude"
+            },
+            {
+              "name": "exclude-test-category",
+              "condition": "metadata.category === 'test'",
+              "action": "exclude"
+            },
+            {
+              "name": "exclude-demo-id-pattern",
+              "condition": "id.match(/demo|test|mock|fake/i)",
+              "action": "exclude"
+            },
+            {
+              "name": "exclude-disabled",
+              "condition": "metadata.enabled === false",
+              "action": "exclude"
+            },
+            {
+              "name": "exclude-non-production",
+              "condition": "metadata.isProduction === false",
+              "action": "exclude"
+            },
+            {
+              "name": "exclude-error-status",
+              "condition": "status === 'ERROR' && requireHealthCheck",
+              "action": "exclude"
+            }
+          ]
+        }
+      }
+    }
+  },
+  "examples": [
+    {
+      "description": "Agent that should be excluded (demo)",
+      "input": {
+        "id": "demo-agent-123",
+        "name": "Demo Agent",
+        "metadata": {
+          "category": "demo",
+          "enabled": true
+        }
+      },
+      "expected": "excluded"
+    },
+    {
+      "description": "Agent that should be included (production)",
+      "input": {
+        "id": "enterprise-admin-456",
+        "name": "Enterprise Admin",
+        "metadata": {
+          "category": "enterprise",
+          "enabled": true,
+          "isProduction": true
+        },
+        "status": "ACTIVE"
+      },
+      "expected": "included"
+    },
+    {
+      "description": "Agent with test in ID",
+      "input": {
+        "id": "test-assistant",
+        "name": "Test Assistant",
+        "metadata": {
+          "category": "general",
+          "enabled": true
+        }
+      },
+      "expected": "excluded"
+    }
+  ]
+}

@@ -10,6 +10,7 @@ import { GoogleAuth } from 'google-auth-library';
 import type { AgentInfo, AgentListResponse, AgentListCache } from '~/types';
 import { AgentStatus } from '~/types';
 import { validateAgentMetadata, type AgentMetadataConfig } from './agent-metadata-validator';
+import { filterAgents } from './agent-filter';
 import * as fs from 'fs';
 import * as path from 'path';
 
@@ -237,6 +238,7 @@ export class AgentEngineService {
           priority: metadata?.priority || 999,
           icon: metadata?.icon,
           enabled: metadata?.enabled !== false,
+          isProduction: metadata?.isProduction !== false, // Default to true for real Vertex AI agents
           ...metadata,
         },
       };
@@ -265,6 +267,7 @@ export class AgentEngineService {
               category: metadata.category || 'general',
               priority: metadata.priority || 999,
               icon: metadata.icon,
+              isProduction: metadata.isProduction !== false, // Respect explicit configuration
               ...metadata,
               enabled: metadata.enabled !== false,
             },
@@ -275,14 +278,23 @@ export class AgentEngineService {
       }
     }
 
-    // Sort by priority (lower numbers first)
-    mergedAgents.sort((a, b) => {
+    // Apply production agent filtering (filter demo/test agents)
+    console.log(`Pre-filter agent count: ${mergedAgents.length}`);
+    const filteredAgents = filterAgents(mergedAgents);
+    console.log(`Post-filter agent count: ${filteredAgents.length}`);
+    const excludedCount = mergedAgents.length - filteredAgents.length;
+    if (excludedCount > 0) {
+      console.log(`Excluded ${excludedCount} demo/test agents from display`);
+    }
+
+    // Sort filtered agents by priority (lower numbers first)
+    filteredAgents.sort((a, b) => {
       const priorityA = a.metadata?.priority || 999;
       const priorityB = b.metadata?.priority || 999;
       return priorityA - priorityB;
     });
 
-    return mergedAgents;
+    return filteredAgents;
   }
 
   /**
@@ -393,15 +405,29 @@ export class AgentEngineService {
 
       // Step 1: Discover agents from Vertex AI
       const vertexAgents = await this.discoverAgentsFromVertexAI();
-      console.log(`Discovered ${vertexAgents.length} agents from Vertex AI`);
+      console.log(`[Agent Discovery] Discovered ${vertexAgents.length} agents from Vertex AI:`, 
+        vertexAgents.map(a => ({ id: a.id, name: a.name })));
 
       // Step 2: Merge with metadata configuration
       const mergedAgents = this.mergeAgentsWithMetadata(vertexAgents);
-      console.log(`Merged ${mergedAgents.length} agents with metadata`);
+      console.log(`[Agent Filtering] Merged ${mergedAgents.length} agents with metadata`);
 
       // Step 3: Perform health checks (in parallel for better performance)
       const healthCheckedAgents = await this.healthCheckAgents(mergedAgents);
-      console.log(`Health checked ${healthCheckedAgents.length} agents`);
+      console.log(`[Health Checks] Completed health checks for ${healthCheckedAgents.length} agents`);
+      const activeAgents = healthCheckedAgents.filter(a => a.status === 'active').length;
+      const errorAgents = healthCheckedAgents.filter(a => a.status === 'error').length;
+      console.log(`[Health Status] Active: ${activeAgents}, Error: ${errorAgents}, Inactive: ${healthCheckedAgents.length - activeAgents - errorAgents}`);
+
+      // Summary logging
+      console.log(`[Agent Summary] Final agent list:`, 
+        healthCheckedAgents.map(a => ({ 
+          id: a.id, 
+          name: a.name, 
+          status: a.status, 
+          category: a.metadata?.category,
+          isProduction: a.metadata?.isProduction
+        })));
 
       // Step 4: Store agents in the agents map for retrieval
       this.agents.clear();

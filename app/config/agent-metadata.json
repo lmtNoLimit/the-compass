@@ -1,31 +1,24 @@
 {
   "agents": {
-    "demo-agent-123": {
-      "name": "Demo Agent",
-      "description": "Demo health check agent for testing agent discovery functionality",
-      "capabilities": ["health-check", "basic-query", "status-monitoring"],
-      "category": "demo",
-      "priority": 100,
-      "icon": "test-tube",
-      "enabled": true
-    },
-    "enterprise-admin-456": {
-      "name": "Enterprise Admin",
-      "description": "Enterprise IT Administrator persona for conducting user interviews and understanding enterprise workflows",
-      "capabilities": ["persona-simulation", "interview", "enterprise-context", "workflow-analysis"],
-      "category": "enterprise",
-      "priority": 10,
-      "icon": "briefcase",
-      "enabled": true
-    },
-    "general-assistant-789": {
-      "name": "General Assistant",
-      "description": "General-purpose AI assistant for everyday tasks and conversations",
-      "capabilities": ["general-purpose", "conversation", "task-assistance"],
-      "category": "general",
+    "8231669723205468160": {
+      "name": "Health Check Agent",
+      "description": "Health monitoring and system diagnostics agent",
+      "capabilities": ["health-check", "diagnostics", "monitoring"],
+      "category": "specialized",
       "priority": 1,
-      "icon": "message-circle",
-      "enabled": true
+      "icon": "activity",
+      "enabled": true,
+      "isProduction": true
+    },
+    "839292409853509632": {
+      "name": "Enterprise Admin",
+      "description": "Enterprise administration and configuration agent",
+      "capabilities": ["admin", "configuration", "management"],
+      "category": "enterprise",
+      "priority": 2,
+      "icon": "settings",
+      "enabled": true,
+      "isProduction": true
     }
   },
   "defaults": {

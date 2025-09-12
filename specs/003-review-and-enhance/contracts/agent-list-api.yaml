@@ -1,0 +1,149 @@
+openapi: 3.0.0
+info:
+  title: Agent List API
+  version: 1.0.0
+  description: API for retrieving filtered list of production agents
+
+paths:
+  /api/agents:
+    get:
+      summary: Get list of available agents
+      description: Returns filtered list of production agents, excluding demo/test agents
+      parameters:
+        - name: refresh
+          in: query
+          required: false
+          schema:
+            type: boolean
+            default: false
+          description: Force refresh of agent cache
+      responses:
+        '200':
+          description: Successful response with filtered agent list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentListResponse'
+              examples:
+                withAgents:
+                  summary: Response with production agents
+                  value:
+                    agents:
+                      - id: "enterprise-admin-456"
+                        name: "Enterprise Admin"
+                        description: "Enterprise IT Administrator persona"
+                        status: "active"
+                        capabilities: ["persona-simulation", "interview"]
+                        metadata:
+                          category: "enterprise"
+                          priority: 10
+                          enabled: true
+                    timestamp: "2025-09-11T10:00:00Z"
+                    cached: false
+                    totalCount: 1
+                emptyList:
+                  summary: No agents available
+                  value:
+                    agents: []
+                    timestamp: "2025-09-11T10:00:00Z"
+                    cached: false
+                    totalCount: 0
+
+components:
+  schemas:
+    AgentListResponse:
+      type: object
+      required:
+        - agents
+        - timestamp
+        - cached
+        - totalCount
+      properties:
+        agents:
+          type: array
+          items:
+            $ref: '#/components/schemas/AgentInfo'
+          description: Filtered list of production agents
+        timestamp:
+          type: string
+          format: date-time
+          description: Timestamp of the response
+        cached:
+          type: boolean
+          description: Whether the response is from cache
+        totalCount:
+          type: integer
+          minimum: 0
+          description: Total number of agents after filtering
+    
+    AgentInfo:
+      type: object
+      required:
+        - id
+        - name
+        - description
+        - status
+        - capabilities
+      properties:
+        id:
+          type: string
+          pattern: '^(?!.*(demo|test|mock|fake|dummy)).*$'
+          description: Unique agent identifier (no test/demo patterns)
+        name:
+          type: string
+          minLength: 1
+          description: Display name of the agent
+        description:
+          type: string
+          minLength: 1
+          description: Agent description
+        status:
+          type: string
+          enum: ["active", "inactive", "error"]
+          description: Current agent status
+        capabilities:
+          type: array
+          items:
+            type: string
+          minItems: 1
+          description: List of agent capabilities
+        endpoint:
+          type: string
+          format: uri
+          description: Agent API endpoint
+        projectId:
+          type: string
+          description: Google Cloud project ID
+        location:
+          type: string
+          description: Deployment location
+        lastUpdated:
+          type: string
+          format: date-time
+          description: Last update timestamp
+        metadata:
+          $ref: '#/components/schemas/AgentMetadata'
+    
+    AgentMetadata:
+      type: object
+      properties:
+        category:
+          type: string
+          pattern: '^(?!.*(demo|test)).*$'
+          description: Agent category (not demo/test)
+        priority:
+          type: integer
+          minimum: 1
+          maximum: 999
+          description: Display priority
+        icon:
+          type: string
+          description: Display icon
+        enabled:
+          type: boolean
+          default: true
+          description: Whether agent is enabled
+        isProduction:
+          type: boolean
+          default: true
+          description: Whether agent is for production use

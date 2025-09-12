@@ -55,6 +55,13 @@ export enum AgentStatus {
   ERROR = 'error'
 }
 
+export interface AgentFilter {
+  excludeCategories: string[];
+  excludePatterns: RegExp[];
+  requireHealthCheck: boolean;
+  productionOnly: boolean;
+}
+
 export interface AgentMetadata {
   modelType?: string;
   maxTokens?: number;
@@ -65,6 +72,7 @@ export interface AgentMetadata {
   priority?: number;
   icon?: string;
   enabled?: boolean;
+  isProduction?: boolean;
 }
 
 export interface AgentInfo {

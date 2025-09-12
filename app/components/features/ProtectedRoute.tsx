@@ -1,7 +1,7 @@
 import { Navigate, Outlet } from 'react-router';
 import { useAuth } from '@clerk/react-router';
 
-export function ProtectedRoute() {
+function ProtectedRoute() {
   const { isLoaded, isSignedIn } = useAuth();
 
   if (!isLoaded) {
@@ -18,3 +18,9 @@ export function ProtectedRoute() {
 
   return <Outlet />;
 }
+
+// Default export for React Router v7 layout
+export default ProtectedRoute;
+
+// Named export for backward compatibility (tests, etc.)
+export { ProtectedRoute };

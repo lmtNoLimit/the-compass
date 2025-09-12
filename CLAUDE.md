@@ -41,9 +41,9 @@ tests/
 - Hybrid configuration approach for agent metadata
 
 ## Recent Changes
+- 003-review-and-enhance: Removing demo/mock agents, filtering for production agents only in AgentList
 - 002-get-the-list: Implementing dynamic agent discovery from Vertex AI using hybrid approach (API + metadata config)
 - 001-refine-the-chat: Added lazy chat session creation - sessions only created on first message submission, not route access
-- 001-refine-the-chat: Implements ChatGPT/Gemini UI patterns with clean, minimal interface
 
 ## Key Patterns
 ### Zero Session Management in UI
