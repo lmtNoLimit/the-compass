@@ -57,6 +57,5 @@ root_agent = Agent(
     model="gemini-2.5-flash",  # Using flash model for consistency and cost-effectiveness
     description="Enterprise Admin Agent simulating an experienced IT administrator for enterprise software evaluation.",
     instruction=ENTERPRISE_ADMIN_PROMPT,
-    # temperature=0.4,  # Lower temperature for consistent persona responses
     tools=[],  # No tools needed for persona simulation
 )

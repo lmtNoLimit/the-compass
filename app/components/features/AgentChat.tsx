@@ -15,7 +15,7 @@ export function AgentChat() {
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [availableAgents, setAvailableAgents] = useState<AgentInfo[]>([]);
-  const [selectedAgent, setSelectedAgent] = useState<string>('demo-agent');
+  const [selectedAgent, setSelectedAgent] = useState<string>('');
   const [showAgentSelector, setShowAgentSelector] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -28,10 +28,10 @@ export function AgentChat() {
           const data = await response.json();
           if (data.agents && Array.isArray(data.agents)) {
             setAvailableAgents(data.agents);
-            // Set default to enterprise-admin if available
-            const enterpriseAdmin = data.agents.find((a: AgentInfo) => a.id === 'enterprise-admin');
-            if (enterpriseAdmin && enterpriseAdmin.status === 'active') {
-              setSelectedAgent('enterprise-admin');
+            // Set default to first available agent
+            if (data.agents.length > 0) {
+              const activeAgent = data.agents.find((a: AgentInfo) => a.status === 'active');
+              setSelectedAgent(activeAgent ? activeAgent.id : data.agents[0].id);
             }
           }
         }

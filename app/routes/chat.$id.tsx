@@ -17,7 +17,7 @@ export async function clientLoader({ params }: any): Promise<any> {
     body: JSON.stringify({
       action: 'get_session',
       sessionId: params.id,
-      agentId: 'demo-agent', // We'll need to determine this from the session data
+      // agentId will be determined from session data by backend
     }),
   });
 

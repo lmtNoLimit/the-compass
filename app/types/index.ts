@@ -63,16 +63,11 @@ export interface AgentFilter {
 }
 
 export interface AgentMetadata {
-  modelType?: string;
-  maxTokens?: number;
-  responseTime?: number;
-  supportedLanguages?: string[];
-  customConfig?: Record<string, any>;
-  category?: 'general' | 'specialized' | 'enterprise' | 'demo' | 'experimental';
-  priority?: number;
-  icon?: string;
-  enabled?: boolean;
-  isProduction?: boolean;
+  category: 'general' | 'specialized' | 'enterprise';
+  priority: number;
+  icon: string;
+  enabled: boolean;
+  isProduction: boolean;
 }
 
 export interface AgentInfo {

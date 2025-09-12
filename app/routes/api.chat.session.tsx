@@ -16,7 +16,7 @@ export async function action(args: any) {
 
     const agentEngine = getAgentEngineService();
     const body = await args.request.json();
-    const { action, agentId = 'demo-agent', sessionId } = body;
+    const { action, agentId, sessionId } = body;
 
     switch (action) {
       case 'create_session': {

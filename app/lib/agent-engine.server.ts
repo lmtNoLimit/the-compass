@@ -9,8 +9,7 @@
 import { GoogleAuth } from 'google-auth-library';
 import type { AgentInfo, AgentListResponse, AgentListCache } from '~/types';
 import { AgentStatus } from '~/types';
-import { validateAgentMetadata, type AgentMetadataConfig } from './agent-metadata-validator';
-import { filterAgents } from './agent-filter';
+import { categorizeAgent, shouldFilterAgent } from './agent-categorizer';
 import * as fs from 'fs';
 import * as path from 'path';
 
@@ -41,21 +40,17 @@ export class AgentEngineService {
   private initialized: boolean = false;
   private agents: Map<string, AgentInfo> = new Map();
   private agentCache: AgentListCache | null = null;
-  private metadataConfig: AgentMetadataConfig | null = null;
 
   constructor() {
     this.projectId = process.env.GOOGLE_CLOUD_PROJECT_ID || '';
     this.location = process.env.GOOGLE_CLOUD_REGION || 'us-central1';
     this.defaultAgentId = process.env.VERTEX_AGENT_ID || '';
 
-    if (!this.projectId || !this.defaultAgentId) {
+    if (!this.projectId) {
       throw new Error(
-        'Both GOOGLE_CLOUD_PROJECT_ID and VERTEX_AGENT_ID environment variables are required.'
+        'GOOGLE_CLOUD_PROJECT_ID environment variable is required.'
       );
     }
-
-    // Load agent metadata configuration
-    this.loadAgentMetadata();
 
     // Initialize Google Auth
     try {
@@ -87,40 +82,6 @@ export class AgentEngineService {
     console.log(`Registered ${this.agents.size} agents`);
   }
 
-  /**
-   * Load agent metadata configuration from file
-   */
-  private loadAgentMetadata(): void {
-    try {
-      const metadataPath = path.join(process.cwd(), 'app', 'config', 'agent-metadata.json');
-      if (fs.existsSync(metadataPath)) {
-        const metadataContent = fs.readFileSync(metadataPath, 'utf-8');
-        const rawConfig = JSON.parse(metadataContent);
-        this.metadataConfig = validateAgentMetadata(rawConfig);
-        console.log(`Loaded metadata for ${Object.keys(this.metadataConfig.agents).length} agents`);
-      } else {
-        console.warn('Agent metadata configuration not found, using defaults');
-        this.metadataConfig = {
-          agents: {},
-          defaults: {
-            fallbackName: 'Vertex AI Agent',
-            fallbackDescription: 'An AI agent deployed in Vertex AI Agent Engine',
-            fallbackCapabilities: ['general-purpose'],
-          },
-        };
-      }
-    } catch (error) {
-      console.error('Failed to load agent metadata:', error);
-      this.metadataConfig = {
-        agents: {},
-        defaults: {
-          fallbackName: 'Vertex AI Agent',
-          fallbackDescription: 'An AI agent deployed in Vertex AI Agent Engine',
-          fallbackCapabilities: ['general-purpose'],
-        },
-      };
-    }
-  }
 
   /**
    * Discover agents dynamically from Vertex AI Agent Engine
@@ -206,95 +167,47 @@ export class AgentEngineService {
   }
 
   /**
-   * Merge Vertex AI agents with metadata configuration
+   * Process and categorize Vertex AI agents using smart categorization
    */
   private mergeAgentsWithMetadata(vertexAgents: AgentConfig[]): AgentInfo[] {
-    const mergedAgents: AgentInfo[] = [];
-    const processedIds = new Set<string>();
+    const processedAgents: AgentInfo[] = [];
 
-    // Process agents from Vertex AI first
+    // Process each Vertex AI agent with smart categorization
     for (const vertexAgent of vertexAgents) {
-      const metadata = this.metadataConfig?.agents[vertexAgent.id];
-      const defaults = this.metadataConfig?.defaults;
+      // Skip agents that should be filtered out (demo/test agents)
+      if (shouldFilterAgent(vertexAgent.id, vertexAgent.name)) {
+        continue;
+      }
+
+      // Use smart categorization based on agent name and description
+      const smartMetadata = categorizeAgent(vertexAgent.name, vertexAgent.description);
 
       const agentInfo: AgentInfo = {
         id: vertexAgent.id,
-        name: metadata?.name || vertexAgent.name || defaults?.fallbackName || 'Unnamed Agent',
-        description:
-          metadata?.description ||
-          vertexAgent.description ||
-          defaults?.fallbackDescription ||
-          'AI Agent',
+        name: vertexAgent.name || 'Unnamed Agent',
+        description: vertexAgent.description || 'AI Agent',
         status: AgentStatus.ACTIVE, // Will be validated by health check
-        capabilities: metadata?.capabilities ||
-          vertexAgent.capabilities ||
-          defaults?.fallbackCapabilities || ['general'],
+        capabilities: vertexAgent.capabilities || ['general'],
         endpoint: vertexAgent.endpoint,
         projectId: vertexAgent.projectId,
         location: vertexAgent.location,
         lastUpdated: new Date(),
-        metadata: {
-          category: metadata?.category || 'general',
-          priority: metadata?.priority || 999,
-          icon: metadata?.icon,
-          enabled: metadata?.enabled !== false,
-          isProduction: metadata?.isProduction !== false, // Default to true for real Vertex AI agents
-          ...metadata,
-        },
+        metadata: smartMetadata,
       };
 
-      if (agentInfo.metadata?.enabled !== false) {
-        mergedAgents.push(agentInfo);
-        processedIds.add(vertexAgent.id);
-      }
+      processedAgents.push(agentInfo);
     }
 
-    // Add metadata-only agents that weren't found in Vertex AI
-    if (this.metadataConfig?.agents) {
-      for (const [agentId, metadata] of Object.entries(this.metadataConfig.agents)) {
-        if (!processedIds.has(agentId) && metadata.enabled !== false) {
-          const agentInfo: AgentInfo = {
-            id: agentId,
-            name: metadata.name,
-            description: metadata.description,
-            status: AgentStatus.INACTIVE, // Not deployed in Vertex AI
-            capabilities: metadata.capabilities,
-            endpoint: this.constructAgentEndpoint(agentId),
-            projectId: this.projectId,
-            location: this.location,
-            lastUpdated: new Date(),
-            metadata: {
-              category: metadata.category || 'general',
-              priority: metadata.priority || 999,
-              icon: metadata.icon,
-              isProduction: metadata.isProduction !== false, // Respect explicit configuration
-              ...metadata,
-              enabled: metadata.enabled !== false,
-            },
-          };
+    console.log(`Processed ${processedAgents.length} agents with smart categorization`);
 
-          mergedAgents.push(agentInfo);
-        }
-      }
-    }
-
-    // Apply production agent filtering (filter demo/test agents)
-    console.log(`Pre-filter agent count: ${mergedAgents.length}`);
-    const filteredAgents = filterAgents(mergedAgents);
-    console.log(`Post-filter agent count: ${filteredAgents.length}`);
-    const excludedCount = mergedAgents.length - filteredAgents.length;
-    if (excludedCount > 0) {
-      console.log(`Excluded ${excludedCount} demo/test agents from display`);
-    }
-
-    // Sort filtered agents by priority (lower numbers first)
-    filteredAgents.sort((a, b) => {
+    // Sort agents by priority (lower numbers first)
+    processedAgents.sort((a, b) => {
       const priorityA = a.metadata?.priority || 999;
       const priorityB = b.metadata?.priority || 999;
       return priorityA - priorityB;
     });
 
-    return filteredAgents;
+    return processedAgents;
   }
 
   /**
@@ -533,15 +446,24 @@ export class AgentEngineService {
    * Get agent configuration by ID
    */
   private getAgentConfig(agentId?: string): AgentInfo {
-    const id = agentId || 'demo-agent';
-    const config = this.agents.get(id);
-
-    if (!config) {
-      console.warn(`Agent ${id} not found, falling back to demo-agent`);
-      return this.agents.get('demo-agent')!;
+    // If agentId is provided, try to find it
+    if (agentId) {
+      const config = this.agents.get(agentId);
+      if (config) {
+        return config;
+      }
+      console.warn(`Agent ${agentId} not found`);
     }
-
-    return config;
+    
+    // Fallback to first available agent
+    const availableAgents = Array.from(this.agents.values());
+    if (availableAgents.length === 0) {
+      throw new Error('No agents available. Please ensure agents are deployed and discovered.');
+    }
+    
+    const fallbackAgent = availableAgents[0];
+    console.log(`Using fallback agent: ${fallbackAgent.name} (${fallbackAgent.id})`);
+    return fallbackAgent;
   }
 
   /**

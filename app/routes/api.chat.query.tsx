@@ -13,11 +13,18 @@ export async function action(args: any) {
 
     const agentEngine = getAgentEngineService();
     const body = await args.request.json();
-    const { sessionId, prompt, agentId = 'demo-agent' } = body;
+    const { sessionId, prompt, agentId } = body;
 
     if (!prompt) {
       return Response.json(
         { error: 'prompt is required for querying.' },
+        { status: 400 }
+      );
+    }
+
+    if (!agentId) {
+      return Response.json(
+        { error: 'agentId is required for querying.' },
         { status: 400 }
       );
     }

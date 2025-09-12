@@ -47,7 +47,7 @@ export function ModernAgentChat({ agents, conversation, conversationId, selected
       return activeAgent.id;
     }
     
-    return agents.length > 0 ? agents[0].id : 'demo-agent';
+    return agents.length > 0 ? agents[0].id : '';
   });
   const [showAgentSelector, setShowAgentSelector] = useState(false);
   const [sessions, setSessions] = useState<Session[]>([]);
